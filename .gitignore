@@ -1,0 +1,38 @@
+
+# ==============================
+# JAVA / SPRING BOOT
+# ==============================
+backend/target/
+*.class
+*.log
+
+# ==============================
+# REACT / VITE / NODE
+# ==============================
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ==============================
+# VARIABLES Y CONFIGURACIONES PRIVADAS
+# ==============================
+.env
+.env.*
+!.env.example
+
+**/application.properties
+**/application.yml
+**/application.yaml
+
+# ==============================
+# IDE
+# ==============================
+.vscode/
+.idea/
+*.iml
+
+# ==============================
+# SISTEMA OPERATIVO
+# ==============================
+.DS_Store
+Thumbs.db
