@@ -489,3 +489,102 @@
     margin-left: auto;
   }
 }
+
+
+/* ========================================
+   INTERACTIVIDAD DEL DASHBOARD
+======================================== */
+
+/* Tarjetas de estadísticas */
+.stat-card {
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform 0.2s ease, box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 18px rgba(35, 75, 105, 0.09);
+  border-color: #dce8f0;
+}
+
+.stat-card:focus-visible,
+.quick-access-card:focus-visible,
+.panel-action:focus-visible,
+.notification-button:focus-visible {
+  outline: 3px solid rgba(57, 118, 161, 0.3);
+  outline-offset: 3px;
+}
+
+/* Accesos rápidos */
+.quick-access-card {
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform 0.2s ease, box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.quick-access-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 18px rgba(35, 75, 105, 0.09);
+  border-color: #dce8f0;
+}
+
+.quick-access-arrow {
+  margin-left: auto;
+  color: #8a9baa;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.quick-access-card:hover .quick-access-arrow {
+  opacity: 1;
+  transform: translate(2px, -2px);
+}
+
+/* Búsqueda */
+.search-clear-button {
+  border: none;
+  background: transparent;
+  color: #7b8995;
+  font-size: 22px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.search-clear-button:hover {
+  color: #3976a1;
+}
+
+/* Resultados vacíos */
+.dashboard-empty-message {
+  padding: 22px 12px;
+  text-align: center;
+  color: #8996a2;
+  font-size: 13px;
+}
+
+/* Accesibilidad */
+.stat-card:focus,
+.quick-access-card:focus {
+  outline: none;
+}
+
+.stat-card:focus-visible,
+.quick-access-card:focus-visible {
+  outline: 3px solid rgba(57, 118, 161, 0.3);
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  .quick-access-arrow {
+    opacity: 1;
+  }
+}

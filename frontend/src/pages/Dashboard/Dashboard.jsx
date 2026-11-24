@@ -1,5 +1,6 @@
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   CalendarDays,
   PawPrint,
@@ -72,6 +73,9 @@ const activities = [
 
 function Dashboard() {
   const [role] = useState("VETERINARIAN");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const navigate = useNavigate();
 
   const currentDate = new Intl.DateTimeFormat("es-MX", {
     weekday: "long",
@@ -80,6 +84,28 @@ function Dashboard() {
     year: "numeric",
   }).format(new Date());
 
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+
+  const filteredAppointments = useMemo(() => {
+    return appointments.filter((appointment) =>
+      [
+        appointment.time,
+        appointment.pet,
+        appointment.owner,
+        appointment.service,
+        appointment.status,
+      ].some((value) => value.toLowerCase().includes(normalizedSearch))
+    );
+  }, [normalizedSearch]);
+
+  const filteredActivities = useMemo(() => {
+    return activities.filter((activity) =>
+      [activity.title, activity.description, activity.time].some((value) =>
+        value.toLowerCase().includes(normalizedSearch)
+      )
+    );
+  }, [normalizedSearch]);
+
   const statistics = [
     {
       title: "Citas de hoy",
@@ -87,6 +113,7 @@ function Dashboard() {
       description: "Citas programadas",
       icon: CalendarDays,
       color: "blue",
+      path: "/appointments",
     },
     {
       title: "Mascotas",
@@ -94,6 +121,7 @@ function Dashboard() {
       description: "Pacientes registrados",
       icon: PawPrint,
       color: "green",
+      path: "/pets",
     },
     {
       title: "Clientes",
@@ -101,6 +129,7 @@ function Dashboard() {
       description: "Propietarios registrados",
       icon: Users,
       color: "purple",
+      path: "/clients",
     },
     {
       title: "Consultas realizadas",
@@ -108,6 +137,38 @@ function Dashboard() {
       description: "Durante esta semana",
       icon: Stethoscope,
       color: "orange",
+      path: "/medical-records",
+    },
+  ];
+
+  const quickAccess = [
+    {
+      title: "Registrar cliente",
+      description: "Agregar un propietario",
+      icon: UserPlus,
+      color: "blue",
+      path: "/clients",
+    },
+    {
+      title: "Registrar mascota",
+      description: "Agregar un paciente",
+      icon: PawPrint,
+      color: "green",
+      path: "/pets",
+    },
+    {
+      title: "Agendar cita",
+      description: "Programar una consulta",
+      icon: CalendarPlus,
+      color: "purple",
+      path: "/appointments",
+    },
+    {
+      title: "Nuevo expediente",
+      description: "Registrar una consulta",
+      icon: ClipboardList,
+      color: "orange",
+      path: "/medical-records",
     },
   ];
 
@@ -116,22 +177,36 @@ function Dashboard() {
       <Sidebar role={role} />
 
       <main className="dashboard-main">
-
         {/* Barra superior */}
         <header className="dashboard-topbar">
           <div className="topbar-search">
             <Search size={18} />
+
             <input
               type="text"
-              placeholder="Buscar en VetCare..."
+              placeholder="Buscar citas o actividades..."
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
             />
+
+            {searchTerm && (
+              <button
+                type="button"
+                className="search-clear-button"
+                onClick={() => setSearchTerm("")}
+                aria-label="Limpiar búsqueda"
+              >
+                ×
+              </button>
+            )}
           </div>
 
           <div className="topbar-actions">
             <button
               type="button"
               className="notification-button"
-              aria-label="Notificaciones"
+              aria-label="Ir a notificaciones"
+              onClick={() => navigate("/notifications")}
             >
               <Bell size={20} />
               <span className="notification-indicator"></span>
@@ -149,7 +224,6 @@ function Dashboard() {
 
         {/* Contenido */}
         <div className="dashboard-content">
-
           <section className="dashboard-welcome">
             <div>
               <span className="dashboard-date">{currentDate}</span>
@@ -170,7 +244,13 @@ function Dashboard() {
               const Icon = item.icon;
 
               return (
-                <article className="stat-card" key={item.title}>
+                <button
+                  type="button"
+                  className="stat-card"
+                  key={item.title}
+                  onClick={() => navigate(item.path)}
+                  title={`Ir a ${item.title}`}
+                >
                   <div className={`stat-icon ${item.color}`}>
                     <Icon size={22} />
                   </div>
@@ -182,14 +262,13 @@ function Dashboard() {
                   </div>
 
                   <ArrowUpRight className="stat-arrow" size={18} />
-                </article>
+                </button>
               );
             })}
           </section>
 
           {/* Agenda y actividad */}
           <section className="dashboard-panels">
-
             <article className="dashboard-panel appointments-panel">
               <div className="panel-heading">
                 <div>
@@ -197,40 +276,50 @@ function Dashboard() {
                   <p>Agenda de atención de hoy</p>
                 </div>
 
-                <button type="button" className="panel-action">
+                <button
+                  type="button"
+                  className="panel-action"
+                  onClick={() => navigate("/appointments")}
+                >
                   Ver agenda
                   <ArrowUpRight size={16} />
                 </button>
               </div>
 
               <div className="appointments-list">
-                {appointments.map((appointment) => (
-                  <div
-                    className="appointment-item"
-                    key={`${appointment.time}-${appointment.pet}`}
-                  >
-                    <div className="appointment-time">
-                      <Clock size={15} />
-                      <span>{appointment.time}</span>
-                    </div>
-
-                    <div className="appointment-pet">
-                      <strong>{appointment.pet}</strong>
-                      <span>{appointment.owner}</span>
-                      <small>{appointment.service}</small>
-                    </div>
-
-                    <span
-                      className={`appointment-status ${
-                        appointment.status === "Confirmada"
-                          ? "confirmed"
-                          : "pending"
-                      }`}
+                {filteredAppointments.length > 0 ? (
+                  filteredAppointments.map((appointment) => (
+                    <div
+                      className="appointment-item"
+                      key={`${appointment.time}-${appointment.pet}`}
                     >
-                      {appointment.status}
-                    </span>
-                  </div>
-                ))}
+                      <div className="appointment-time">
+                        <Clock size={15} />
+                        <span>{appointment.time}</span>
+                      </div>
+
+                      <div className="appointment-pet">
+                        <strong>{appointment.pet}</strong>
+                        <span>{appointment.owner}</span>
+                        <small>{appointment.service}</small>
+                      </div>
+
+                      <span
+                        className={`appointment-status ${
+                          appointment.status === "Confirmada"
+                            ? "confirmed"
+                            : "pending"
+                        }`}
+                      >
+                        {appointment.status}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="dashboard-empty-message">
+                    No se encontraron citas con esa búsqueda.
+                  </p>
+                )}
               </div>
             </article>
 
@@ -243,26 +332,31 @@ function Dashboard() {
               </div>
 
               <div className="activity-list">
-                {activities.map((activity) => {
-                  const Icon = activity.icon;
+                {filteredActivities.length > 0 ? (
+                  filteredActivities.map((activity) => {
+                    const Icon = activity.icon;
 
-                  return (
-                    <div className="activity-item" key={activity.title}>
-                      <div className="activity-icon">
-                        <Icon size={18} />
-                      </div>
+                    return (
+                      <div className="activity-item" key={activity.title}>
+                        <div className="activity-icon">
+                          <Icon size={18} />
+                        </div>
 
-                      <div className="activity-information">
-                        <strong>{activity.title}</strong>
-                        <p>{activity.description}</p>
-                        <span>{activity.time}</span>
+                        <div className="activity-information">
+                          <strong>{activity.title}</strong>
+                          <p>{activity.description}</p>
+                          <span>{activity.time}</span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                ) : (
+                  <p className="dashboard-empty-message">
+                    No se encontraron actividades con esa búsqueda.
+                  </p>
+                )}
               </div>
             </article>
-
           </section>
 
           {/* Accesos rápidos */}
@@ -275,48 +369,34 @@ function Dashboard() {
             </div>
 
             <div className="quick-access-grid">
-              <article className="quick-access-card">
-                <div className="quick-icon blue">
-                  <UserPlus size={21} />
-                </div>
-                <div>
-                  <strong>Registrar cliente</strong>
-                  <span>Agregar un propietario</span>
-                </div>
-              </article>
+              {quickAccess.map((item) => {
+                const Icon = item.icon;
 
-              <article className="quick-access-card">
-                <div className="quick-icon green">
-                  <PawPrint size={21} />
-                </div>
-                <div>
-                  <strong>Registrar mascota</strong>
-                  <span>Agregar un paciente</span>
-                </div>
-              </article>
+                return (
+                  <button
+                    type="button"
+                    className="quick-access-card"
+                    key={item.title}
+                    onClick={() => navigate(item.path)}
+                  >
+                    <div className={`quick-icon ${item.color}`}>
+                      <Icon size={21} />
+                    </div>
 
-              <article className="quick-access-card">
-                <div className="quick-icon purple">
-                  <CalendarPlus size={21} />
-                </div>
-                <div>
-                  <strong>Agendar cita</strong>
-                  <span>Programar una consulta</span>
-                </div>
-              </article>
+                    <div>
+                      <strong>{item.title}</strong>
+                      <span>{item.description}</span>
+                    </div>
 
-              <article className="quick-access-card">
-                <div className="quick-icon orange">
-                  <ClipboardList size={21} />
-                </div>
-                <div>
-                  <strong>Nuevo expediente</strong>
-                  <span>Registrar una consulta</span>
-                </div>
-              </article>
+                    <ArrowUpRight
+                      className="quick-access-arrow"
+                      size={17}
+                    />
+                  </button>
+                );
+              })}
             </div>
           </section>
-
         </div>
       </main>
     </div>
@@ -324,3 +404,4 @@ function Dashboard() {
 }
 
 export default Dashboard;
+

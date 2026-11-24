@@ -6,34 +6,69 @@ import {
   Bell,
   ShieldCheck,
   Save,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
 } from "lucide-react";
 import Sidebar from "../../components/layout/Sidebar";
 import "./Settings.css";
 
+const initialClinic = {
+  name: "VetCare",
+  email: "contacto@vetcare.com",
+  phone: "55 1234 5678",
+  address: "Ciudad de México, México",
+  openingTime: "09:00",
+  closingTime: "18:00",
+};
+
+const initialPreferences = {
+  language: "Español",
+  timezone: "America/Mexico_City",
+  dateFormat: "DD/MM/YYYY",
+  currency: "MXN",
+};
+
+const initialNotifications = {
+  newAppointments: true,
+  cancelledAppointments: true,
+  lowInventory: true,
+  emailNotifications: false,
+};
+
+const sections = [
+  {
+    id: "clinic",
+    label: "Información de la clínica",
+    icon: Building2,
+  },
+  {
+    id: "preferences",
+    label: "Preferencias generales",
+    icon: Globe,
+  },
+  {
+    id: "notifications",
+    label: "Notificaciones",
+    icon: Bell,
+  },
+  {
+    id: "security",
+    label: "Seguridad y sistema",
+    icon: ShieldCheck,
+  },
+];
+
 function Settings() {
   const [activeSection, setActiveSection] = useState("clinic");
 
-  const [clinic, setClinic] = useState({
-    name: "VetCare",
-    email: "contacto@vetcare.com",
-    phone: "55 1234 5678",
-    address: "Ciudad de México, México",
-    openingTime: "09:00",
-    closingTime: "18:00",
-  });
+  const [clinic, setClinic] = useState(initialClinic);
+  const [preferences, setPreferences] = useState(initialPreferences);
+  const [notifications, setNotifications] = useState(initialNotifications);
 
-  const [preferences, setPreferences] = useState({
-    language: "Español",
-    timezone: "America/Mexico_City",
-    dateFormat: "DD/MM/YYYY",
-    currency: "MXN",
-  });
-
-  const [notifications, setNotifications] = useState({
-    newAppointments: true,
-    cancelledAppointments: true,
-    lowInventory: true,
-    emailNotifications: false,
+  const [feedback, setFeedback] = useState({
+    type: "",
+    message: "",
   });
 
   const handleClinicChange = (event) => {
@@ -43,6 +78,8 @@ function Settings() {
       ...previous,
       [name]: value,
     }));
+
+    setFeedback({ type: "", message: "" });
   };
 
   const handlePreferenceChange = (event) => {
@@ -52,6 +89,8 @@ function Settings() {
       ...previous,
       [name]: value,
     }));
+
+    setFeedback({ type: "", message: "" });
   };
 
   const handleNotificationChange = (event) => {
@@ -61,34 +100,92 @@ function Settings() {
       ...previous,
       [name]: checked,
     }));
+
+    setFeedback({ type: "", message: "" });
+  };
+
+  const validateClinic = () => {
+    if (clinic.name.trim().length < 3) {
+      return "El nombre de la clínica debe tener al menos 3 caracteres.";
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(clinic.email.trim())) {
+      return "Ingresa un correo electrónico válido.";
+    }
+
+    const phoneDigits = clinic.phone.replace(/\D/g, "");
+
+    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+      return "El teléfono debe contener entre 10 y 15 dígitos.";
+    }
+
+    if (clinic.address.trim().length < 5) {
+      return "Ingresa una dirección válida.";
+    }
+
+    if (!clinic.openingTime || !clinic.closingTime) {
+      return "Debes indicar el horario de apertura y cierre.";
+    }
+
+    if (clinic.openingTime >= clinic.closingTime) {
+      return "La hora de cierre debe ser posterior a la hora de apertura.";
+    }
+
+    return "";
   };
 
   const handleSave = () => {
-    alert("La configuración se ha guardado localmente.");
+    if (activeSection === "clinic") {
+      const validationError = validateClinic();
+
+      if (validationError) {
+        setFeedback({
+          type: "error",
+          message: validationError,
+        });
+        return;
+      }
+    }
+
+    if (
+      activeSection === "preferences" &&
+      (!preferences.language ||
+        !preferences.timezone ||
+        !preferences.dateFormat ||
+        !preferences.currency)
+    ) {
+      setFeedback({
+        type: "error",
+        message: "Completa todas las preferencias antes de guardar.",
+      });
+      return;
+    }
+
+    setFeedback({
+      type: "success",
+      message:
+        "Los cambios de esta sección se han guardado localmente. La persistencia definitiva estará disponible al conectar el backend.",
+    });
   };
 
-  const sections = [
-    {
-      id: "clinic",
-      label: "Información de la clínica",
-      icon: Building2,
-    },
-    {
-      id: "preferences",
-      label: "Preferencias generales",
-      icon: Globe,
-    },
-    {
-      id: "notifications",
-      label: "Notificaciones",
-      icon: Bell,
-    },
-    {
-      id: "security",
-      label: "Seguridad y sistema",
-      icon: ShieldCheck,
-    },
-  ];
+  const renderFeedback = () => {
+    if (!feedback.message) return null;
+
+    const FeedbackIcon =
+      feedback.type === "success" ? CheckCircle2 : AlertCircle;
+
+    return (
+      <div
+        className={`settings-feedback ${feedback.type}`}
+        role={feedback.type === "error" ? "alert" : "status"}
+      >
+        <FeedbackIcon size={18} />
+        <span>{feedback.message}</span>
+      </div>
+    );
+  };
 
   return (
     <div className="settings-layout">
@@ -101,9 +198,7 @@ function Settings() {
               Administración / Configuración
             </span>
             <h1>Configuración</h1>
-            <p>
-              Administra las preferencias generales de tu clínica.
-            </p>
+            <p>Administra las preferencias generales de tu clínica.</p>
           </div>
         </header>
 
@@ -117,10 +212,14 @@ function Settings() {
               return (
                 <button
                   key={section.id}
+                  type="button"
                   className={`settings-nav-item ${
                     activeSection === section.id ? "active" : ""
                   }`}
-                  onClick={() => setActiveSection(section.id)}
+                  onClick={() => {
+                    setActiveSection(section.id);
+                    setFeedback({ type: "", message: "" });
+                  }}
                 >
                   <Icon size={19} />
                   <span>{section.label}</span>
@@ -135,70 +234,97 @@ function Settings() {
                 <div className="settings-card-header">
                   <div>
                     <h2>Información de la clínica</h2>
-                    <p>
-                      Actualiza los datos principales de VetCare.
-                    </p>
+                    <p>Actualiza los datos principales de VetCare.</p>
                   </div>
                   <Building2 size={23} />
                 </div>
 
                 <div className="settings-form-grid">
                   <div className="settings-field">
-                    <label>Nombre de la clínica</label>
+                    <label htmlFor="clinic-name">Nombre de la clínica</label>
                     <input
+                      id="clinic-name"
                       name="name"
                       value={clinic.name}
                       onChange={handleClinicChange}
+                      placeholder="Nombre de la clínica"
+                      maxLength={100}
+                      required
                     />
                   </div>
 
                   <div className="settings-field">
-                    <label>Correo electrónico</label>
+                    <label htmlFor="clinic-email">Correo electrónico</label>
                     <input
+                      id="clinic-email"
                       type="email"
                       name="email"
                       value={clinic.email}
                       onChange={handleClinicChange}
+                      placeholder="contacto@vetcare.com"
+                      maxLength={150}
+                      required
                     />
                   </div>
 
                   <div className="settings-field">
-                    <label>Teléfono</label>
+                    <label htmlFor="clinic-phone">Teléfono</label>
                     <input
+                      id="clinic-phone"
+                      type="tel"
                       name="phone"
                       value={clinic.phone}
                       onChange={handleClinicChange}
+                      placeholder="55 1234 5678"
+                      maxLength={20}
+                      required
                     />
                   </div>
 
                   <div className="settings-field">
-                    <label>Dirección</label>
+                    <label htmlFor="clinic-address">Dirección</label>
                     <input
+                      id="clinic-address"
                       name="address"
                       value={clinic.address}
                       onChange={handleClinicChange}
+                      placeholder="Dirección de la clínica"
+                      maxLength={200}
+                      required
                     />
                   </div>
 
                   <div className="settings-field">
-                    <label>Hora de apertura</label>
+                    <label htmlFor="opening-time">Hora de apertura</label>
                     <input
+                      id="opening-time"
                       type="time"
                       name="openingTime"
                       value={clinic.openingTime}
                       onChange={handleClinicChange}
+                      required
                     />
                   </div>
 
                   <div className="settings-field">
-                    <label>Hora de cierre</label>
+                    <label htmlFor="closing-time">Hora de cierre</label>
                     <input
+                      id="closing-time"
                       type="time"
                       name="closingTime"
                       value={clinic.closingTime}
                       onChange={handleClinicChange}
+                      required
                     />
                   </div>
+                </div>
+
+                <div className="settings-section-note">
+                  <Clock size={17} />
+                  <span>
+                    Este horario se utilizará como referencia para la
+                    administración de citas de la clínica.
+                  </span>
                 </div>
               </div>
             )}
@@ -208,29 +334,29 @@ function Settings() {
                 <div className="settings-card-header">
                   <div>
                     <h2>Preferencias generales</h2>
-                    <p>
-                      Personaliza el comportamiento de la aplicación.
-                    </p>
+                    <p>Personaliza el comportamiento de la aplicación.</p>
                   </div>
                   <Globe size={23} />
                 </div>
 
                 <div className="settings-form-grid">
                   <div className="settings-field">
-                    <label>Idioma</label>
+                    <label htmlFor="preference-language">Idioma</label>
                     <select
+                      id="preference-language"
                       name="language"
                       value={preferences.language}
                       onChange={handlePreferenceChange}
                     >
-                      <option>Español</option>
-                      <option>English</option>
+                      <option value="Español">Español</option>
+                      <option value="English">English</option>
                     </select>
                   </div>
 
                   <div className="settings-field">
-                    <label>Zona horaria</label>
+                    <label htmlFor="preference-timezone">Zona horaria</label>
                     <select
+                      id="preference-timezone"
                       name="timezone"
                       value={preferences.timezone}
                       onChange={handlePreferenceChange}
@@ -238,31 +364,29 @@ function Settings() {
                       <option value="America/Mexico_City">
                         Ciudad de México
                       </option>
-                      <option value="America/Cancun">
-                        Cancún
-                      </option>
-                      <option value="America/Tijuana">
-                        Tijuana
-                      </option>
+                      <option value="America/Cancun">Cancún</option>
+                      <option value="America/Tijuana">Tijuana</option>
                     </select>
                   </div>
 
                   <div className="settings-field">
-                    <label>Formato de fecha</label>
+                    <label htmlFor="preference-date">Formato de fecha</label>
                     <select
+                      id="preference-date"
                       name="dateFormat"
                       value={preferences.dateFormat}
                       onChange={handlePreferenceChange}
                     >
-                      <option>DD/MM/YYYY</option>
-                      <option>MM/DD/YYYY</option>
-                      <option>YYYY-MM-DD</option>
+                      <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                      <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                      <option value="YYYY-MM-DD">YYYY-MM-DD</option>
                     </select>
                   </div>
 
                   <div className="settings-field">
-                    <label>Moneda</label>
+                    <label htmlFor="preference-currency">Moneda</label>
                     <select
+                      id="preference-currency"
                       name="currency"
                       value={preferences.currency}
                       onChange={handlePreferenceChange}
@@ -272,6 +396,15 @@ function Settings() {
                     </select>
                   </div>
                 </div>
+
+                <div className="settings-section-note">
+                  <Globe size={17} />
+                  <span>
+                    Estas preferencias serán utilizadas por los componentes
+                    de la aplicación cuando implementemos su configuración
+                    global.
+                  </span>
+                </div>
               </div>
             )}
 
@@ -280,9 +413,7 @@ function Settings() {
                 <div className="settings-card-header">
                   <div>
                     <h2>Preferencias de notificaciones</h2>
-                    <p>
-                      Selecciona qué avisos deseas recibir.
-                    </p>
+                    <p>Selecciona qué avisos deseas recibir.</p>
                   </div>
                   <Bell size={23} />
                 </div>
@@ -317,7 +448,9 @@ function Settings() {
                   <label className="settings-option">
                     <div>
                       <strong>Inventario bajo</strong>
-                      <p>Avisar cuando un producto alcance su stock mínimo.</p>
+                      <p>
+                        Avisar cuando un producto alcance su stock mínimo.
+                      </p>
                     </div>
                     <input
                       type="checkbox"
@@ -340,6 +473,14 @@ function Settings() {
                     />
                   </label>
                 </div>
+
+                <div className="settings-section-note">
+                  <Bell size={17} />
+                  <span>
+                    La entrega real de correos y notificaciones dependerá
+                    de los servicios que configuremos en el backend.
+                  </span>
+                </div>
               </div>
             )}
 
@@ -348,9 +489,7 @@ function Settings() {
                 <div className="settings-card-header">
                   <div>
                     <h2>Seguridad y sistema</h2>
-                    <p>
-                      Información general sobre el sistema.
-                    </p>
+                    <p>Información general sobre el sistema.</p>
                   </div>
                   <ShieldCheck size={23} />
                 </div>
@@ -368,9 +507,7 @@ function Settings() {
 
                   <div>
                     <span>Estado del sistema</span>
-                    <strong className="system-status">
-                      Operativo
-                    </strong>
+                    <strong className="system-status">Operativo</strong>
                   </div>
 
                   <div>
@@ -380,15 +517,22 @@ function Settings() {
                 </div>
 
                 <div className="settings-security-note">
-                  Las opciones de seguridad de usuarios y sesiones se
-                  administrarán cuando conectemos la autenticación del
-                  backend.
+                  <ShieldCheck size={18} />
+                  <p>
+                    Las opciones de seguridad de usuarios, contraseñas,
+                    sesiones y permisos se administrarán mediante Spring
+                    Security y JWT cuando conectemos la autenticación del
+                    backend.
+                  </p>
                 </div>
               </div>
             )}
 
+            {renderFeedback()}
+
             <div className="settings-actions">
               <button
+                type="button"
                 className="settings-save-button"
                 onClick={handleSave}
               >
@@ -404,3 +548,4 @@ function Settings() {
 }
 
 export default Settings;
+

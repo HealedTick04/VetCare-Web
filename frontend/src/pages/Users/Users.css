@@ -351,3 +351,239 @@
     flex-direction: column;
   }
 }
+
+
+/* ========================================
+   FORMULARIO DE USUARIOS
+======================================== */
+
+.users-form {
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+}
+
+.users-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.users-form-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #405365;
+}
+
+.users-form-field input,
+.users-form-field select {
+  width: 100%;
+  min-height: 43px;
+  padding: 10px 12px;
+  border: 1px solid #dce4eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #405365;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.users-form-field input:focus,
+.users-form-field select:focus {
+  border-color: #3976a1;
+  box-shadow: 0 0 0 3px rgba(57, 118, 161, 0.1);
+}
+
+.users-form-field .input-error {
+  border-color: #dc6464;
+}
+
+.users-form-error {
+  color: #d34e4e;
+  font-size: 12px;
+}
+
+.users-form-note {
+  padding: 12px;
+  border-radius: 8px;
+  background: #f1f6fa;
+  color: #64798a;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ========================================
+   BOTONES DEL MODAL
+======================================== */
+
+.users-modal-primary,
+.users-modal-secondary {
+  min-height: 40px;
+  padding: 0 17px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.users-modal-primary {
+  border: 1px solid #3976a1;
+  background: #3976a1;
+  color: white;
+}
+
+.users-modal-primary:hover {
+  background: #2e6389;
+}
+
+.users-modal-secondary {
+  border: 1px solid #dce4eb;
+  background: white;
+  color: #596b7a;
+}
+
+.users-modal-secondary:hover {
+  background: #f3f6f8;
+}
+
+/* ========================================
+   DETALLE DEL USUARIO
+======================================== */
+
+.users-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.users-detail-avatar {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #e6f0f7;
+  color: #3976a1;
+  font-size: 27px;
+  font-weight: 700;
+}
+
+.users-detail h3 {
+  margin: 0;
+  color: #34495a;
+  font-size: 18px;
+}
+
+.users-detail-information {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 17px;
+  margin-top: 15px;
+  padding-top: 18px;
+  border-top: 1px solid #e9eef2;
+}
+
+.users-detail-information div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.users-detail-information span {
+  color: #8795a1;
+  font-size: 12px;
+}
+
+.users-detail-information strong {
+  color: #405365;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.users-detail-information .users-detail-active {
+  color: #26966c;
+}
+
+.users-detail-information .users-detail-inactive {
+  color: #d16a6a;
+}
+
+/* ========================================
+   ACCIONES DE LA TABLA
+======================================== */
+
+.users-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.users-actions button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 7px;
+  background: #f1f5f8;
+  color: #64798a;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.users-actions button:hover {
+  background: #e3edf5;
+  color: #3976a1;
+}
+
+.users-actions .users-deactivate-action:hover {
+  background: #fff0ed;
+  color: #d45c50;
+}
+
+.users-actions .users-activate-action:hover {
+  background: #e8f7ef;
+  color: #26966c;
+}
+
+/* ========================================
+   BUSCADOR
+======================================== */
+
+.users-clear-search {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #8795a1;
+  cursor: pointer;
+}
+
+.users-clear-search:hover {
+  color: #3976a1;
+}
+
+/* ========================================
+   RESPONSIVE
+======================================== */
+
+@media (max-width: 600px) {
+  .users-detail-information {
+    grid-template-columns: 1fr;
+  }
+
+  .users-modal-primary,
+  .users-modal-secondary {
+    padding: 0 12px;
+  }
+}

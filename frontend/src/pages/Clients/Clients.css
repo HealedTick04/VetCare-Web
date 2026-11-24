@@ -336,3 +336,91 @@
     padding: 16px;
   }
 }
+
+
+/* =========================================
+   FORMULARIO DE CLIENTES
+========================================= */
+
+.clients-secondary-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border: 1px solid #e4e9ee;
+  border-radius: 9px;
+  background: white;
+  color: #607080;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.clients-secondary-btn:hover {
+  background: #f7f9fb;
+  border-color: #cbd5df;
+}
+
+.client-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.client-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.client-form-field label {
+  color: #526273;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.client-form-field input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 43px;
+  padding: 11px 13px;
+  border: 1px solid #e4e9ee;
+  border-radius: 9px;
+  background: white;
+  color: #34495e;
+  font-size: 13px;
+  outline: none;
+  transition: 0.2s;
+}
+
+.client-form-field input::placeholder {
+  color: #a5b0ba;
+}
+
+.client-form-field input:focus {
+  border-color: #3976a1;
+  box-shadow: 0 0 0 3px rgba(57, 118, 161, 0.1);
+}
+
+.client-form-field input:disabled {
+  background: #f7f9fb;
+  color: #8795a3;
+  cursor: not-allowed;
+}
+
+.client-form-error {
+  margin: 16px 0 0;
+  padding: 11px 13px;
+  border-radius: 8px;
+  background: #fff0f0;
+  color: #d34b4b;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .client-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

@@ -307,3 +307,73 @@
     padding: 16px;
   }
 }
+
+
+/* Mejoras para el selector de periodo */
+.reports-toolbar select {
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.reports-toolbar select:focus {
+  outline: none;
+  border-color: #3976a1;
+  box-shadow: 0 0 0 3px rgba(57, 118, 161, 0.12);
+}
+
+/* Confirmación de exportación */
+.reports-export-feedback {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: -10px 0 20px;
+  padding: 12px 15px;
+  border: 1px solid #b8dfcc;
+  border-radius: 9px;
+  background: #eff9f3;
+  color: #28734c;
+  font-size: 13px;
+}
+
+/* Interacción del botón de exportación */
+.reports-export-button {
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.reports-export-button:hover {
+  transform: translateY(-1px);
+}
+
+.reports-export-button:focus-visible {
+  outline: 3px solid rgba(57, 118, 161, 0.25);
+  outline-offset: 3px;
+}
+
+/* Evitar desbordamientos en los gráficos */
+.reports-chart,
+.reports-pie-chart,
+.reports-service-chart {
+  min-width: 0;
+}
+
+/* Ajustes para pantallas pequeñas */
+@media (max-width: 600px) {
+  .reports-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .reports-export-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .reports-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .reports-export-feedback {
+    align-items: flex-start;
+  }
+}

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import Sidebar from "../../components/layout/Sidebar";
+import Modal from "../../components/common/Modal";
 import "./Clients.css";
 
 const demoClients = [
@@ -65,12 +66,120 @@ const demoClients = [
   },
 ];
 
+const emptyClient = {
+  name: "",
+  email: "",
+  phone: "",
+  address: "",
+};
+
 function Clients() {
+  const [clients, setClients] = useState(demoClients);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("create");
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [formData, setFormData] = useState(emptyClient);
+
+  const [formError, setFormError] = useState("");
+
+  const openCreateModal = () => {
+    setModalMode("create");
+    setSelectedClient(null);
+    setFormData(emptyClient);
+    setFormError("");
+    setIsModalOpen(true);
+  };
+
+  const openViewModal = (client) => {
+    setModalMode("view");
+    setSelectedClient(client);
+    setFormData({
+      name: client.name,
+      email: client.email,
+      phone: client.phone,
+      address: client.address,
+    });
+    setFormError("");
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (client) => {
+    setModalMode("edit");
+    setSelectedClient(client);
+    setFormData({
+      name: client.name,
+      email: client.email,
+      phone: client.phone,
+      address: client.address,
+    });
+    setFormError("");
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedClient(null);
+    setFormData(emptyClient);
+    setFormError("");
+  };
+
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormData((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+
+    if (
+      !formData.name.trim() ||
+      !formData.email.trim() ||
+      !formData.phone.trim() ||
+      !formData.address.trim()
+    ) {
+      setFormError("Todos los campos son obligatorios.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setFormError("Introduce un correo electrónico válido.");
+      return;
+    }
+
+    if (modalMode === "create") {
+      const newClient = {
+        id: Date.now(),
+        ...formData,
+        pets: 0,
+        status: "Activo",
+      };
+
+      setClients((previous) => [...previous, newClient]);
+    }
+
+    if (modalMode === "edit" && selectedClient) {
+      setClients((previous) =>
+        previous.map((client) =>
+          client.id === selectedClient.id
+            ? { ...client, ...formData }
+            : client
+        )
+      );
+    }
+
+    closeModal();
+  };
+
   const filteredClients = useMemo(() => {
-    return demoClients.filter((client) => {
+    return clients.filter((client) => {
       const matchesSearch = [
         client.name,
         client.email,
@@ -85,17 +194,17 @@ function Clients() {
 
       return matchesSearch && matchesStatus;
     });
-  }, [search, statusFilter]);
+  }, [clients, search, statusFilter]);
 
-  const activeClients = demoClients.filter(
+  const activeClients = clients.filter(
     (client) => client.status === "Activo"
   ).length;
 
-  const inactiveClients = demoClients.filter(
+  const inactiveClients = clients.filter(
     (client) => client.status === "Inactivo"
   ).length;
 
-  const totalPets = demoClients.reduce(
+  const totalPets = clients.reduce(
     (total, client) => total + client.pets,
     0
   );
@@ -117,7 +226,10 @@ function Clients() {
             </p>
           </div>
 
-          <button className="clients-primary-btn">
+          <button
+            className="clients-primary-btn"
+            onClick={openCreateModal}
+          >
             <Plus size={18} />
             Nuevo cliente
           </button>
@@ -130,7 +242,7 @@ function Clients() {
             </div>
             <div>
               <span>Total de clientes</span>
-              <h2>{demoClients.length}</h2>
+              <h2>{clients.length}</h2>
             </div>
           </div>
 
@@ -262,10 +374,17 @@ function Clients() {
 
                     <td>
                       <div className="client-actions">
-                        <button title="Ver cliente">
+                        <button
+                          title="Ver cliente"
+                          onClick={() => openViewModal(client)}
+                        >
                           <Eye size={17} />
                         </button>
-                        <button title="Editar cliente">
+
+                        <button
+                          title="Editar cliente"
+                          onClick={() => openEditModal(client)}
+                        >
                           <Pencil size={17} />
                         </button>
                       </div>
@@ -284,9 +403,109 @@ function Clients() {
             </table>
           </div>
         </section>
+
+        <Modal
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          title={
+            modalMode === "create"
+              ? "Registrar nuevo cliente"
+              : modalMode === "edit"
+                ? "Editar cliente"
+                : "Información del cliente"
+          }
+          description={
+            modalMode === "view"
+              ? "Consulta los datos registrados del propietario."
+              : "Completa la información del propietario."
+          }
+          size="medium"
+          footer={
+            <>
+              <button
+                type="button"
+                className="clients-secondary-btn"
+                onClick={closeModal}
+              >
+                {modalMode === "view" ? "Cerrar" : "Cancelar"}
+              </button>
+
+              {modalMode !== "view" && (
+                <button
+                  type="submit"
+                  form="client-form"
+                  className="clients-primary-btn"
+                >
+                  {modalMode === "create"
+                    ? "Guardar cliente"
+                    : "Guardar cambios"}
+                </button>
+              )}
+            </>
+          }
+        >
+          <form id="client-form" onSubmit={handleSubmit}>
+            <div className="client-form-grid">
+              <div className="client-form-field">
+                <label htmlFor="client-name">Nombre completo *</label>
+                <input
+                  id="client-name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  disabled={modalMode === "view"}
+                  placeholder="Ej. María González"
+                />
+              </div>
+
+              <div className="client-form-field">
+                <label htmlFor="client-email">Correo electrónico *</label>
+                <input
+                  id="client-email"
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  disabled={modalMode === "view"}
+                  placeholder="correo@ejemplo.com"
+                />
+              </div>
+
+              <div className="client-form-field">
+                <label htmlFor="client-phone">Teléfono *</label>
+                <input
+                  id="client-phone"
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  disabled={modalMode === "view"}
+                  placeholder="951 123 4567"
+                />
+              </div>
+
+              <div className="client-form-field">
+                <label htmlFor="client-address">Dirección *</label>
+                <input
+                  id="client-address"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  disabled={modalMode === "view"}
+                  placeholder="Colonia, ciudad"
+                />
+              </div>
+            </div>
+
+            {formError && (
+              <p className="client-form-error">{formError}</p>
+            )}
+          </form>
+        </Modal>
       </main>
     </div>
   );
 }
 
 export default Clients;
+

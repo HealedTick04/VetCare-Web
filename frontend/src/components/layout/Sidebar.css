@@ -124,3 +124,24 @@
   background-color: #DCE5EB;
   border-radius: 10px;
 }
+
+
+/* Botón de cierre de sesión */
+
+button.sidebar-logout {
+  width: 100%;
+  border: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+}
+
+button.sidebar-logout:focus-visible {
+  outline: 2px solid #3976a1;
+  outline-offset: 3px;
+}
+
+button.sidebar-logout:hover {
+  background: rgba(255, 255, 255, 0.1);
+}

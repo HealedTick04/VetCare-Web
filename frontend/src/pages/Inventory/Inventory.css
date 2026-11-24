@@ -299,3 +299,155 @@
     min-width: 0;
   }
 }
+
+
+/* =========================================
+   FORMULARIOS DE INVENTARIO
+========================================= */
+
+.inventory-secondary-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border: 1px solid #e4e9ee;
+  border-radius: 9px;
+  background: white;
+  color: #607080;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.inventory-secondary-button:hover {
+  background: #f7f9fb;
+  border-color: #cbd5df;
+}
+
+.inventory-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.inventory-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inventory-form-full {
+  grid-column: 1 / -1;
+}
+
+.inventory-form-field label {
+  color: #526273;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.inventory-form-field input,
+.inventory-form-field select,
+.inventory-form-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1px solid #e4e9ee;
+  border-radius: 9px;
+  background: white;
+  color: #34495e;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: 0.2s;
+}
+
+.inventory-form-field input,
+.inventory-form-field select {
+  min-height: 43px;
+}
+
+.inventory-form-field textarea {
+  min-height: 85px;
+  resize: vertical;
+}
+
+.inventory-form-field input:focus,
+.inventory-form-field select:focus,
+.inventory-form-field textarea:focus {
+  border-color: #3976a1;
+  box-shadow: 0 0 0 3px rgba(57, 118, 161, 0.1);
+}
+
+.inventory-form-field input:disabled,
+.inventory-form-field select:disabled,
+.inventory-form-field textarea:disabled {
+  background: #f7f9fb;
+  color: #8795a3;
+  cursor: not-allowed;
+}
+
+.inventory-form-error {
+  margin: 16px 0 0;
+  padding: 11px 13px;
+  border-radius: 8px;
+  background: #fff0f0;
+  color: #d34b4b;
+  font-size: 13px;
+}
+
+/* =========================================
+   AJUSTE DE EXISTENCIAS
+========================================= */
+
+.inventory-stock-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 22px;
+  padding: 16px;
+  border: 1px solid #e4e9ee;
+  border-radius: 10px;
+  background: #f7f9fb;
+}
+
+.inventory-stock-summary span {
+  color: #718096;
+  font-size: 13px;
+}
+
+.inventory-stock-summary strong {
+  color: #34495e;
+  font-size: 16px;
+}
+
+/* =========================================
+   ACCIONES DE PRODUCTOS
+========================================= */
+
+.inventory-actions .inventory-stock-btn {
+  color: #3976a1;
+}
+
+.inventory-actions .inventory-stock-btn:hover {
+  background: #eaf3f9;
+}
+
+.inventory-actions .inventory-delete-btn {
+  color: #d9534f;
+}
+
+.inventory-actions .inventory-delete-btn:hover {
+  background: #fff0f0;
+}
+
+@media (max-width: 600px) {
+  .inventory-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .inventory-form-full {
+    grid-column: auto;
+  }
+}

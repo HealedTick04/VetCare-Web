@@ -510,3 +510,204 @@
     min-width: 150px;
   }
 }
+
+
+/* =========================================
+   FORMULARIO DE CITAS
+========================================= */
+
+.appointment-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.appointment-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.appointment-form-full {
+  grid-column: 1 / -1;
+}
+
+.appointment-form-field label {
+  color: #526273;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.appointment-form-field input,
+.appointment-form-field select,
+.appointment-form-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1px solid #e4e9ee;
+  border-radius: 9px;
+  background: #fff;
+  color: #34495e;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: 0.2s;
+}
+
+.appointment-form-field input,
+.appointment-form-field select {
+  min-height: 43px;
+}
+
+.appointment-form-field textarea {
+  min-height: 85px;
+  resize: vertical;
+}
+
+.appointment-form-field input:focus,
+.appointment-form-field select:focus,
+.appointment-form-field textarea:focus {
+  border-color: #3976a1;
+  box-shadow: 0 0 0 3px rgba(57, 118, 161, 0.1);
+}
+
+.appointment-form-field input:disabled,
+.appointment-form-field select:disabled,
+.appointment-form-field textarea:disabled {
+  background: #f7f9fb;
+  color: #8795a3;
+  cursor: not-allowed;
+}
+
+.appointment-form-error {
+  margin: 16px 0 0;
+  padding: 11px 13px;
+  border-radius: 8px;
+  background: #fff0f0;
+  color: #d34b4b;
+  font-size: 13px;
+}
+
+.appointment-secondary-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border: 1px solid #e4e9ee;
+  border-radius: 9px;
+  background: white;
+  color: #607080;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.appointment-secondary-button:hover {
+  background: #f7f9fb;
+}
+
+/* =========================================
+   ACCIONES DE LAS CITAS
+========================================= */
+
+.appointment-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.appointment-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #718096;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.appointment-actions button:hover {
+  background: #edf3f8;
+  color: #3976a1;
+}
+
+.appointment-actions .appointment-complete-action {
+  color: #299764;
+}
+
+.appointment-actions .appointment-complete-action:hover {
+  background: #e8f7ef;
+}
+
+.appointment-actions .appointment-cancel-action {
+  color: #d9534f;
+}
+
+.appointment-actions .appointment-cancel-action:hover {
+  background: #fff0f0;
+}
+
+/* =========================================
+   ACCIONES DEL DÍA SELECCIONADO
+========================================= */
+
+.selected-day-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.appointment-day-add {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 13px;
+  border: 1px solid #dce7ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #3976a1;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.appointment-day-add:hover {
+  background: #edf5fa;
+}
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 700px) {
+  .appointment-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .appointment-form-full {
+    grid-column: auto;
+  }
+
+  .selected-day-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .appointment-card {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .appointment-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

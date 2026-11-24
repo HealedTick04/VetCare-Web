@@ -11,9 +11,11 @@ import {
   Eye,
   Pencil,
   Activity,
+  Power,
 } from "lucide-react";
 
 import Sidebar from "../../components/layout/Sidebar";
+import Modal from "../../components/common/Modal";
 import "./Services.css";
 
 const demoServices = [
@@ -79,6 +81,16 @@ const demoServices = [
   },
 ];
 
+const emptyForm = {
+  name: "",
+  category: "Consulta",
+  description: "",
+  duration: "",
+  price: "",
+  status: "Activo",
+  icon: "stethoscope",
+};
+
 function ServiceIcon({ type }) {
   const icons = {
     stethoscope: <Stethoscope size={22} />,
@@ -92,19 +104,28 @@ function ServiceIcon({ type }) {
 }
 
 function Services() {
+  const [services, setServices] = useState(demoServices);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Todas");
   const [statusFilter, setStatusFilter] = useState("Todos");
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("create");
+  const [selectedService, setSelectedService] = useState(null);
+  const [formData, setFormData] = useState(emptyForm);
+  const [formError, setFormError] = useState("");
+
   const filteredServices = useMemo(() => {
-    return demoServices.filter((service) => {
+    return services.filter((service) => {
       const searchText = search.toLowerCase();
 
       const matchesSearch = [
         service.name,
         service.category,
         service.description,
-      ].some((value) => value.toLowerCase().includes(searchText));
+      ].some((value) =>
+        value.toLowerCase().includes(searchText)
+      );
 
       const matchesCategory =
         categoryFilter === "Todas" ||
@@ -116,19 +137,155 @@ function Services() {
 
       return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [search, categoryFilter, statusFilter]);
+  }, [services, search, categoryFilter, statusFilter]);
 
-  const activeServices = demoServices.filter(
+  const activeServices = services.filter(
     (service) => service.status === "Activo"
   ).length;
 
-  const inactiveServices = demoServices.filter(
+  const inactiveServices = services.filter(
     (service) => service.status === "Inactivo"
   ).length;
 
   const categories = new Set(
-    demoServices.map((service) => service.category)
+    services.map((service) => service.category)
   ).size;
+
+  const openCreateModal = () => {
+    setModalMode("create");
+    setSelectedService(null);
+    setFormData(emptyForm);
+    setFormError("");
+    setIsModalOpen(true);
+  };
+
+  const openViewModal = (service) => {
+    setModalMode("view");
+    setSelectedService(service);
+    setFormData({
+      ...service,
+      duration: String(service.duration),
+      price: String(service.price),
+    });
+    setFormError("");
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (service) => {
+    setModalMode("edit");
+    setSelectedService(service);
+    setFormData({
+      ...service,
+      duration: String(service.duration),
+      price: String(service.price),
+    });
+    setFormError("");
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedService(null);
+    setFormError("");
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (
+      !formData.name.trim() ||
+      !formData.category ||
+      !formData.description.trim() ||
+      !formData.duration ||
+      !formData.price
+    ) {
+      setFormError("Completa todos los campos obligatorios.");
+      return;
+    }
+
+    const duration = Number(formData.duration);
+    const price = Number(formData.price);
+
+    if (
+      !Number.isFinite(duration) ||
+      !Number.isInteger(duration) ||
+      duration <= 0 ||
+      !Number.isFinite(price) ||
+      price <= 0
+    ) {
+      setFormError(
+        "La duración y el precio deben ser números mayores que cero."
+      );
+      return;
+    }
+
+    const serviceData = {
+      ...formData,
+      name: formData.name.trim(),
+      description: formData.description.trim(),
+      duration,
+      price,
+    };
+
+    if (modalMode === "create") {
+      const newService = {
+        id: Date.now(),
+        ...serviceData,
+      };
+
+      setServices((previous) => [
+        newService,
+        ...previous,
+      ]);
+    }
+
+    if (modalMode === "edit" && selectedService) {
+      setServices((previous) =>
+        previous.map((service) =>
+          service.id === selectedService.id
+            ? { ...service, ...serviceData }
+            : service
+        )
+      );
+    }
+
+    closeModal();
+  };
+
+  const toggleServiceStatus = (service) => {
+    const newStatus =
+      service.status === "Activo" ? "Inactivo" : "Activo";
+
+    const confirmed = window.confirm(
+      `¿Deseas ${newStatus === "Activo" ? "activar" : "desactivar"} el servicio "${service.name}"?`
+    );
+
+    if (!confirmed) return;
+
+    setServices((previous) =>
+      previous.map((item) =>
+        item.id === service.id
+          ? { ...item, status: newStatus }
+          : item
+      )
+    );
+  };
+
+  const modalTitle =
+    modalMode === "create"
+      ? "Nuevo servicio"
+      : modalMode === "edit"
+        ? "Editar servicio"
+        : "Detalles del servicio";
 
   return (
     <div className="services-layout">
@@ -146,7 +303,10 @@ function Services() {
             </p>
           </div>
 
-          <button className="services-primary-btn">
+          <button
+            className="services-primary-btn"
+            onClick={openCreateModal}
+          >
             <Plus size={18} />
             Nuevo servicio
           </button>
@@ -159,7 +319,7 @@ function Services() {
             </div>
             <div>
               <span>Total de servicios</span>
-              <h2>{demoServices.length}</h2>
+              <h2>{services.length}</h2>
             </div>
           </div>
 
@@ -300,11 +460,30 @@ function Services() {
 
                     <td>
                       <div className="service-actions">
-                        <button title="Ver servicio">
+                        <button
+                          title="Ver servicio"
+                          onClick={() => openViewModal(service)}
+                        >
                           <Eye size={17} />
                         </button>
-                        <button title="Editar servicio">
+
+                        <button
+                          title="Editar servicio"
+                          onClick={() => openEditModal(service)}
+                        >
                           <Pencil size={17} />
+                        </button>
+
+                        <button
+                          className="service-toggle-btn"
+                          title={
+                            service.status === "Activo"
+                              ? "Desactivar servicio"
+                              : "Activar servicio"
+                          }
+                          onClick={() => toggleServiceStatus(service)}
+                        >
+                          <Power size={17} />
                         </button>
                       </div>
                     </td>
@@ -323,6 +502,150 @@ function Services() {
           </div>
         </section>
       </main>
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={modalTitle}
+        description={
+          modalMode === "view"
+            ? "Consulta la información del servicio seleccionado."
+            : "Completa la información del servicio de la clínica."
+        }
+        size="large"
+        footer={
+          <>
+            <button
+              type="button"
+              className="services-secondary-btn"
+              onClick={closeModal}
+            >
+              {modalMode === "view" ? "Cerrar" : "Cancelar"}
+            </button>
+
+            {modalMode !== "view" && (
+              <button
+                type="submit"
+                form="service-form"
+                className="services-primary-btn"
+              >
+                {modalMode === "create"
+                  ? "Guardar servicio"
+                  : "Guardar cambios"}
+              </button>
+            )}
+          </>
+        }
+      >
+        <form
+          id="service-form"
+          onSubmit={handleSubmit}
+        >
+          <div className="service-form-grid">
+            <div className="service-form-field">
+              <label>Nombre del servicio *</label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                placeholder="Ej. Consulta general"
+                disabled={modalMode === "view"}
+              />
+            </div>
+
+            <div className="service-form-field">
+              <label>Categoría *</label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleInputChange}
+                disabled={modalMode === "view"}
+              >
+                <option value="Consulta">Consulta</option>
+                <option value="Prevención">Prevención</option>
+                <option value="Estética">Estética</option>
+                <option value="Tratamiento">Tratamiento</option>
+                <option value="Cirugía">Cirugía</option>
+              </select>
+            </div>
+
+            <div className="service-form-field">
+              <label>Duración (minutos) *</label>
+              <input
+                type="number"
+                name="duration"
+                min="1"
+                step="1"
+                value={formData.duration}
+                onChange={handleInputChange}
+                placeholder="Ej. 30"
+                disabled={modalMode === "view"}
+              />
+            </div>
+
+            <div className="service-form-field">
+              <label>Precio (MXN) *</label>
+              <input
+                type="number"
+                name="price"
+                min="0.01"
+                step="0.01"
+                value={formData.price}
+                onChange={handleInputChange}
+                placeholder="Ej. 350"
+                disabled={modalMode === "view"}
+              />
+            </div>
+
+            <div className="service-form-field">
+              <label>Icono del servicio</label>
+              <select
+                name="icon"
+                value={formData.icon}
+                onChange={handleInputChange}
+                disabled={modalMode === "view"}
+              >
+                <option value="stethoscope">Estetoscopio</option>
+                <option value="syringe">Jeringa</option>
+                <option value="scissors">Tijeras</option>
+                <option value="heart">Corazón</option>
+                <option value="activity">Actividad</option>
+              </select>
+            </div>
+
+            <div className="service-form-field">
+              <label>Estado</label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+                disabled={modalMode === "view"}
+              >
+                <option value="Activo">Activo</option>
+                <option value="Inactivo">Inactivo</option>
+              </select>
+            </div>
+
+            <div className="service-form-field service-form-full">
+              <label>Descripción *</label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                placeholder="Describe en qué consiste el servicio..."
+                disabled={modalMode === "view"}
+              />
+            </div>
+          </div>
+
+          {formError && (
+            <p className="service-form-error">
+              {formError}
+            </p>
+          )}
+        </form>
+      </Modal>
     </div>
   );
 }

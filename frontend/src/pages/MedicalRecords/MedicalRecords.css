@@ -339,3 +339,108 @@
     padding: 16px;
   }
 }
+/* =========================================
+   FORMULARIO DE EXPEDIENTES MÉDICOS
+========================================= */
+
+.records-secondary-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border: 1px solid #e4e9ee;
+  border-radius: 9px;
+  background: white;
+  color: #607080;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.records-secondary-btn:hover {
+  background: #f7f9fb;
+  border-color: #cbd5df;
+}
+
+.record-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.record-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.record-form-full {
+  grid-column: 1 / -1;
+}
+
+.record-form-field label {
+  color: #526273;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.record-form-field input,
+.record-form-field select,
+.record-form-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1px solid #e4e9ee;
+  border-radius: 9px;
+  background: white;
+  color: #34495e;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: 0.2s;
+}
+
+.record-form-field input,
+.record-form-field select {
+  min-height: 43px;
+}
+
+.record-form-field textarea {
+  resize: vertical;
+  min-height: 75px;
+}
+
+.record-form-field input:focus,
+.record-form-field select:focus,
+.record-form-field textarea:focus {
+  border-color: #3976a1;
+  box-shadow: 0 0 0 3px rgba(57, 118, 161, 0.1);
+}
+
+.record-form-field input:disabled,
+.record-form-field select:disabled,
+.record-form-field textarea:disabled {
+  background: #f7f9fb;
+  color: #8795a3;
+  cursor: not-allowed;
+}
+
+.record-form-error {
+  margin: 16px 0 0;
+  padding: 11px 13px;
+  border-radius: 8px;
+  background: #fff0f0;
+  color: #d34b4b;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .record-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .record-form-full {
+    grid-column: auto;
+  }
+}

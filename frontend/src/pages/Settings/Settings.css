@@ -296,3 +296,125 @@
     padding: 18px;
   }
 }
+
+
+/* Mensajes de validación y confirmación */
+.settings-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 15px;
+  margin-top: 18px;
+  border-radius: 9px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.settings-feedback.success {
+  color: #28734c;
+  background: #eff9f3;
+  border: 1px solid #b8dfcc;
+}
+
+.settings-feedback.error {
+  color: #b33d3d;
+  background: #fff2f1;
+  border: 1px solid #efc3c0;
+}
+
+.settings-feedback svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Información complementaria */
+.settings-section-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 13px 15px;
+  border-radius: 9px;
+  background: #f2f6fa;
+  color: #647789;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.settings-section-note svg {
+  flex-shrink: 0;
+  color: #3976a1;
+  margin-top: 1px;
+}
+
+/* Nota de seguridad */
+.settings-security-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-top: 22px;
+  padding: 15px;
+  border: 1px solid #dce7ef;
+  border-radius: 9px;
+  background: #f5f8fb;
+}
+
+.settings-security-note svg {
+  flex-shrink: 0;
+  color: #3976a1;
+}
+
+.settings-security-note p {
+  margin: 0;
+  color: #647789;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Accesibilidad e interacción */
+.settings-nav-item {
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.settings-nav-item:focus-visible,
+.settings-save-button:focus-visible {
+  outline: 3px solid rgba(57, 118, 161, 0.25);
+  outline-offset: 3px;
+}
+
+.settings-save-button {
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.settings-save-button:hover {
+  transform: translateY(-1px);
+}
+
+/* Adaptación a móviles */
+@media (max-width: 650px) {
+  .settings-container {
+    flex-direction: column;
+  }
+
+  .settings-navigation {
+    width: 100%;
+  }
+
+  .settings-nav-item {
+    width: 100%;
+  }
+
+  .settings-actions {
+    display: flex;
+    justify-content: stretch;
+  }
+
+  .settings-save-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .settings-feedback {
+    font-size: 12px;
+  }
+}

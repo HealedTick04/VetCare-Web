@@ -335,3 +335,119 @@
     padding: 16px;
   }
 }
+
+/* =========================================
+   FORMULARIO DE TRATAMIENTOS
+========================================= */
+
+.treatments-secondary-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border: 1px solid #e4e9ee;
+  border-radius: 9px;
+  background: white;
+  color: #607080;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.treatments-secondary-btn:hover {
+  background: #f7f9fb;
+  border-color: #cbd5df;
+}
+
+.treatment-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.treatment-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.treatment-form-full {
+  grid-column: 1 / -1;
+}
+
+.treatment-form-field label {
+  color: #526273;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.treatment-form-field input,
+.treatment-form-field select,
+.treatment-form-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1px solid #e4e9ee;
+  border-radius: 9px;
+  background: white;
+  color: #34495e;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: 0.2s;
+}
+
+.treatment-form-field input,
+.treatment-form-field select {
+  min-height: 43px;
+}
+
+.treatment-form-field textarea {
+  min-height: 85px;
+  resize: vertical;
+}
+
+.treatment-form-field input:focus,
+.treatment-form-field select:focus,
+.treatment-form-field textarea:focus {
+  border-color: #3976a1;
+  box-shadow: 0 0 0 3px rgba(57, 118, 161, 0.1);
+}
+
+.treatment-form-field input:disabled,
+.treatment-form-field select:disabled,
+.treatment-form-field textarea:disabled {
+  background: #f7f9fb;
+  color: #8795a3;
+  cursor: not-allowed;
+}
+
+.treatment-form-error {
+  margin: 16px 0 0;
+  padding: 11px 13px;
+  border-radius: 8px;
+  background: #fff0f0;
+  color: #d34b4b;
+  font-size: 13px;
+}
+
+/* Acción para finalizar tratamientos */
+
+.treatment-actions .treatment-complete-btn {
+  color: #269b68;
+}
+
+.treatment-actions .treatment-complete-btn:hover {
+  background: #e9f8f0;
+}
+
+@media (max-width: 600px) {
+  .treatment-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .treatment-form-full {
+    grid-column: auto;
+  }
+}

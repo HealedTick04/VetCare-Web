@@ -344,3 +344,108 @@
     flex: 1;
   }
 }
+/* =========================================
+   FORMULARIO DE MASCOTAS
+========================================= */
+
+.pets-secondary-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border: 1px solid #e4e9ee;
+  border-radius: 9px;
+  background: white;
+  color: #607080;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.pets-secondary-btn:hover {
+  background: #f7f9fb;
+  border-color: #cbd5df;
+}
+
+.pet-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.pet-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pet-form-full {
+  grid-column: 1 / -1;
+}
+
+.pet-form-field label {
+  color: #526273;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pet-form-field input,
+.pet-form-field select,
+.pet-form-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1px solid #e4e9ee;
+  border-radius: 9px;
+  background: white;
+  color: #34495e;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: 0.2s;
+}
+
+.pet-form-field input,
+.pet-form-field select {
+  min-height: 43px;
+}
+
+.pet-form-field textarea {
+  resize: vertical;
+  min-height: 85px;
+}
+
+.pet-form-field input:focus,
+.pet-form-field select:focus,
+.pet-form-field textarea:focus {
+  border-color: #3976a1;
+  box-shadow: 0 0 0 3px rgba(57, 118, 161, 0.1);
+}
+
+.pet-form-field input:disabled,
+.pet-form-field select:disabled,
+.pet-form-field textarea:disabled {
+  background: #f7f9fb;
+  color: #8795a3;
+  cursor: not-allowed;
+}
+
+.pet-form-error {
+  margin: 16px 0 0;
+  padding: 11px 13px;
+  border-radius: 8px;
+  background: #fff0f0;
+  color: #d34b4b;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .pet-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pet-form-full {
+    grid-column: auto;
+  }
+}
