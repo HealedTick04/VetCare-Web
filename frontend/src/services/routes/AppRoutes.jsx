@@ -6,6 +6,8 @@ import Dashboard from "../../pages/Dashboard/Dashboard";
 import Appointments from "../../pages/Appointments/Appointments";
 import Clients from "../../pages/Clients/Clients";
 import Pets from "../../pages/Pets/Pets";
+import MedicalRecords from "../../pages/MedicalRecords/MedicalRecords";
+import Treatments from "../../pages/Treatments/Treatments";
 
 function AppRoutes() {
   return (
@@ -21,6 +23,10 @@ function AppRoutes() {
       <Route path="/clients" element={<Clients />} />
 
       <Route path="/pets" element={<Pets />} />
+
+      <Route path="/medical-records" element={<MedicalRecords />} />
+
+      <Route path="/treatments" element={<Treatments />} />
 
       {/* Redirecciones */}
       <Route path="/" element={<Navigate to="/login" replace />} />
