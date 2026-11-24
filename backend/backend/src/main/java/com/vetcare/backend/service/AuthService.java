@@ -7,6 +7,8 @@ import com.vetcare.backend.exception.ResourceNotFoundException;
 import com.vetcare.backend.repository.*;
 import com.vetcare.backend.security.CustomUserDetails;
 import com.vetcare.backend.security.JwtService;
+import com.vetcare.backend.service.notification.EmailNotificationService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -28,6 +30,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final EmailNotificationService emailService;
+    private final NotificationRepository notificationRepository;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -49,6 +53,20 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+
+        // Guardar notificación interna y enviar correo de bienvenida
+        notificationRepository.save(Notification.builder()
+                .user(user)
+                .title("Bienvenido a VetCare")
+                .message("Exito " + user.getFirstName() + ", tu cuenta ha sido creada exitosamente.")
+                .type("Bienvenido")
+                .build());
+
+        emailService.sendEmail(
+                user.getEmail(),
+                "Bienvenido a VetCare",
+                "Exito " + user.getFirstName() + ", tu cuenta en VetCare ha sido creada exitosamente."
+        );
 
         CustomUserDetails userDetails = new CustomUserDetails(user);
         String jwt = jwtService.generateToken(userDetails);
@@ -108,7 +126,14 @@ public class AuthService {
                 .expiresAt(LocalDateTime.now().plusMinutes(30))
                 .build();
         passwordResetTokenRepository.save(entity);
-        return resetToken; // En el Bloque 3 conectaremos aquí el envío real de correo/SMS/WhatsApp
+
+        // Enviar correo real con el token de recuperación
+        emailService.sendEmail(
+                user.getEmail(),
+                "Recuperación de Contraseña - VetCare",
+                "Hola " + user.getFirstName() + ", usa este código para restablecer tu contraseña (expira en 30 minutos): " + resetToken
+        );
+        return resetToken; // aquí el envío real de correo/SMS/WhatsApp
     }
 
     @Transactional
