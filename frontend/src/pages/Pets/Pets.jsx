@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -16,126 +16,41 @@ import {
 
 import Sidebar from "../../components/layout/Sidebar";
 import Modal from "../../components/common/Modal";
+import { petService } from "../../services/api/petService";
+import { clientService } from "../../services/api/clientService";
+import { authService } from "../../services/api/authService";
 import "./Pets.css";
-
-const demoPets = [
-  {
-    id: 1,
-    name: "Max",
-    species: "Perro",
-    breed: "Golden Retriever",
-    sex: "Macho",
-    age: "3 años",
-    birthDate: "",
-    owner: "María González",
-    registrationDate: "12/08/2026",
-    status: "Activo",
-    observations: "",
-  },
-  {
-    id: 2,
-    name: "Luna",
-    species: "Gato",
-    breed: "Persa",
-    sex: "Hembra",
-    age: "2 años",
-    birthDate: "",
-    owner: "Carlos Ramírez",
-    registrationDate: "18/08/2026",
-    status: "Activo",
-    observations: "",
-  },
-  {
-    id: 3,
-    name: "Rocky",
-    species: "Perro",
-    breed: "Bulldog Francés",
-    sex: "Macho",
-    age: "4 años",
-    birthDate: "",
-    owner: "Ana Martínez",
-    registrationDate: "20/08/2026",
-    status: "Activo",
-    observations: "",
-  },
-  {
-    id: 4,
-    name: "Michi",
-    species: "Gato",
-    breed: "Mestizo",
-    sex: "Macho",
-    age: "1 año",
-    birthDate: "",
-    owner: "Luis Hernández",
-    registrationDate: "02/09/2026",
-    status: "Activo",
-    observations: "",
-  },
-  {
-    id: 5,
-    name: "Coco",
-    species: "Ave",
-    breed: "Periquito",
-    sex: "Hembra",
-    age: "8 meses",
-    birthDate: "",
-    owner: "Sofía Torres",
-    registrationDate: "10/09/2026",
-    status: "Activo",
-    observations: "",
-  },
-  {
-    id: 6,
-    name: "Nala",
-    species: "Perro",
-    breed: "Labrador",
-    sex: "Hembra",
-    age: "5 años",
-    birthDate: "",
-    owner: "María González",
-    registrationDate: "15/09/2026",
-    status: "Inactivo",
-    observations: "",
-  },
-];
-
-const demoOwners = [
-  "María González",
-  "Carlos Ramírez",
-  "Ana Martínez",
-  "Luis Hernández",
-  "Sofía Torres",
-];
 
 const emptyForm = {
   name: "",
+  speciesId: "",
   species: "",
+  breedId: "",
   breed: "",
   sex: "",
-  age: "",
+  weight: "",
   birthDate: "",
+  ownerId: "",
   owner: "",
   observations: "",
   status: "Activo",
 };
 
 function getSpeciesIcon(species) {
-  switch (species) {
-    case "Perro":
-      return <Dog size={19} />;
-    case "Gato":
-      return <Cat size={19} />;
-    case "Ave":
-      return <Bird size={19} />;
-    case "Pez":
-      return <Fish size={19} />;
-    default:
-      return <PawPrint size={19} />;
-  }
+  const normalized = (species || "").toLowerCase();
+  if (normalized.includes("perro")) return <Dog size={19} />;
+  if (normalized.includes("gato")) return <Cat size={19} />;
+  if (normalized.includes("ave")) return <Bird size={19} />;
+  if (normalized.includes("pez")) return <Fish size={19} />;
+  return <PawPrint size={19} />;
 }
 
 function Pets() {
-  const [pets, setPets] = useState(demoPets);
+  const [pets, setPets] = useState([]);
+  const [speciesList, setSpeciesList] = useState([]);
+  const [breedsList, setBreedsList] = useState([]);
+  const [ownersList, setOwnersList] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
   const [speciesFilter, setSpeciesFilter] = useState("Todas");
@@ -146,6 +61,56 @@ function Pets() {
   const [selectedPet, setSelectedPet] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
   const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const currentUser = authService.getCurrentUser();
+  const isClientRole = currentUser?.role === "CLIENT";
+
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      const [petsData, speciesData] = await Promise.all([
+        petService.getAll(),
+        petService.getSpecies(),
+      ]);
+      setPets(petsData);
+      setSpeciesList(speciesData);
+
+      // Solo staff (ADMIN/VETERINARIAN) puede listar todos los usuarios CLIENT
+      if (!isClientRole) {
+        const clientsData = await clientService.getAll();
+        setOwnersList(clientsData);
+      }
+    } catch (error) {
+      console.error("Error al cargar mascotas:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  // Cargar razas cuando cambia la especie seleccionada en el modal
+  useEffect(() => {
+    if (!formData.speciesId) {
+      setBreedsList([]);
+      return;
+    }
+
+    const fetchBreeds = async () => {
+      try {
+        const breeds = await petService.getBreedsBySpecies(formData.speciesId);
+        setBreedsList(breeds);
+      } catch (error) {
+        console.error("Error al cargar razas:", error);
+        setBreedsList([]);
+      }
+    };
+
+    fetchBreeds();
+  }, [formData.speciesId]);
 
   const filteredPets = useMemo(() => {
     return pets.filter((pet) => {
@@ -156,38 +121,36 @@ function Pets() {
         pet.species,
         pet.breed,
         pet.owner,
-      ].some((value) =>
-        (value || "").toLowerCase().includes(searchText)
-      );
+      ].some((value) => (value || "").toLowerCase().includes(searchText));
 
       const matchesSpecies =
         speciesFilter === "Todas" ||
-        pet.species === speciesFilter;
+        (pet.species || "").toLowerCase() === speciesFilter.toLowerCase();
 
       const matchesStatus =
-        statusFilter === "Todos" ||
-        pet.status === statusFilter;
+        statusFilter === "Todos" || pet.status === statusFilter;
 
       return matchesSearch && matchesSpecies && matchesStatus;
     });
   }, [pets, search, speciesFilter, statusFilter]);
 
-  const dogs = pets.filter(
-    (pet) => pet.species === "Perro"
+  const dogs = pets.filter((pet) =>
+    (pet.species || "").toLowerCase().includes("perro")
   ).length;
 
-  const cats = pets.filter(
-    (pet) => pet.species === "Gato"
+  const cats = pets.filter((pet) =>
+    (pet.species || "").toLowerCase().includes("gato")
   ).length;
 
-  const otherPets = pets.filter(
-    (pet) => !["Perro", "Gato"].includes(pet.species)
-  ).length;
+  const otherPets = pets.length - dogs - cats;
 
   const openCreateModal = () => {
     setModalMode("create");
     setSelectedPet(null);
-    setFormData(emptyForm);
+    setFormData({
+      ...emptyForm,
+      ownerId: isClientRole ? currentUser?.id : "",
+    });
     setFormError("");
     setIsModalOpen(true);
   };
@@ -195,7 +158,13 @@ function Pets() {
   const openViewModal = (pet) => {
     setModalMode("view");
     setSelectedPet(pet);
-    setFormData({ ...emptyForm, ...pet });
+    setFormData({
+      ...emptyForm,
+      ...pet,
+      speciesId: pet.speciesId || "",
+      breedId: pet.breedId || "",
+      ownerId: pet.ownerId || "",
+    });
     setFormError("");
     setIsModalOpen(true);
   };
@@ -203,7 +172,13 @@ function Pets() {
   const openEditModal = (pet) => {
     setModalMode("edit");
     setSelectedPet(pet);
-    setFormData({ ...emptyForm, ...pet });
+    setFormData({
+      ...emptyForm,
+      ...pet,
+      speciesId: pet.speciesId || "",
+      breedId: pet.breedId || "",
+      ownerId: pet.ownerId || "",
+    });
     setFormError("");
     setIsModalOpen(true);
   };
@@ -220,62 +195,62 @@ function Pets() {
     setFormData((previous) => ({
       ...previous,
       [name]: value,
+      // Si cambia la especie, reiniciamos la raza seleccionada
+      ...(name === "speciesId" ? { breedId: "" } : {}),
     }));
 
     setFormError("");
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setFormError("");
 
-    if (
-      !formData.name.trim() ||
-      !formData.species ||
-      !formData.breed.trim() ||
-      !formData.sex ||
-      !formData.age.trim() ||
-      !formData.owner
-    ) {
-      setFormError(
-        "Completa todos los campos obligatorios."
-      );
+    if (!formData.name.trim() || !formData.speciesId || !formData.sex) {
+      setFormError("Nombre, especie y sexo son obligatorios.");
       return;
     }
 
-    if (modalMode === "create") {
-      const newPet = {
-        ...formData,
-        id: Date.now(),
-        registrationDate: new Date().toLocaleDateString("es-MX"),
-        status: "Activo",
-      };
-
-      setPets((previous) => [...previous, newPet]);
+    if (!isClientRole && !formData.ownerId) {
+      setFormError("Selecciona un propietario para la mascota.");
+      return;
     }
 
-    if (modalMode === "edit" && selectedPet) {
-      setPets((previous) =>
-        previous.map((pet) =>
-          pet.id === selectedPet.id
-            ? { ...pet, ...formData }
-            : pet
-        )
+    try {
+      setSaving(true);
+      if (modalMode === "create") {
+        await petService.create(formData);
+      } else if (modalMode === "edit" && selectedPet) {
+        await petService.update(selectedPet.id, formData);
+      }
+      await loadInitialData();
+      closeModal();
+    } catch (err) {
+      setFormError(
+        err.response?.data?.message ||
+          "Error al guardar la mascota. Verifica los datos."
       );
+    } finally {
+      setSaving(false);
     }
-
-    closeModal();
   };
 
-  const handleDelete = (pet) => {
+  const handleDelete = async (pet) => {
     const confirmed = window.confirm(
       `¿Estás seguro de que deseas eliminar a ${pet.name}? Esta acción no se puede deshacer.`
     );
 
     if (!confirmed) return;
 
-    setPets((previous) =>
-      previous.filter((item) => item.id !== pet.id)
-    );
+    try {
+      await petService.remove(pet.id);
+      await loadInitialData();
+    } catch (err) {
+      alert(
+        err.response?.data?.message ||
+          "No se pudo eliminar la mascota (puede tener citas o historial asociado)."
+      );
+    }
   };
 
   const isReadOnly = modalMode === "view";
@@ -294,25 +269,20 @@ function Pets() {
 
   return (
     <div className="pets-layout">
-      <Sidebar role="VETERINARIAN" />
+      <Sidebar role={currentUser?.role || "VETERINARIAN"} />
 
       <main className="pets-main">
         <header className="pets-header">
           <div>
-            <span className="pets-breadcrumb">
-              Gestión / Mascotas
-            </span>
+            <span className="pets-breadcrumb">Gestión / Mascotas</span>
             <h1>Mascotas</h1>
             <p>
-              Consulta y administra la información de las
-              mascotas registradas en VetCare.
+              Consulta y administra la información de las mascotas registradas en
+              VetCare.
             </p>
           </div>
 
-          <button
-            className="pets-primary-btn"
-            onClick={openCreateModal}
-          >
+          <button className="pets-primary-btn" onClick={openCreateModal}>
             <Plus size={18} />
             Nueva mascota
           </button>
@@ -377,10 +347,11 @@ function Pets() {
               onChange={(e) => setSpeciesFilter(e.target.value)}
             >
               <option value="Todas">Todas las especies</option>
-              <option value="Perro">Perros</option>
-              <option value="Gato">Gatos</option>
-              <option value="Ave">Aves</option>
-              <option value="Pez">Peces</option>
+              {speciesList.map((sp) => (
+                <option key={sp.id} value={sp.name}>
+                  {sp.name}
+                </option>
+              ))}
             </select>
 
             <select
@@ -397,7 +368,9 @@ function Pets() {
             <div>
               <h2>Directorio de mascotas</h2>
               <p>
-                {filteredPets.length} mascotas encontradas
+                {loading
+                  ? "Cargando mascotas..."
+                  : `${filteredPets.length} mascotas encontradas`}
               </p>
             </div>
           </div>
@@ -408,7 +381,7 @@ function Pets() {
                 <tr>
                   <th>Mascota</th>
                   <th>Especie / Raza</th>
-                  <th>Sexo / Edad</th>
+                  <th>Sexo / Nacimiento</th>
                   <th>Propietario</th>
                   <th>Registro</th>
                   <th>Estado</th>
@@ -438,7 +411,7 @@ function Pets() {
                     <td>
                       <div className="pet-age-cell">
                         <span>{pet.sex}</span>
-                        <span>{pet.age}</span>
+                        <span>{pet.birthDate || "Sin fecha"}</span>
                       </div>
                     </td>
 
@@ -452,16 +425,14 @@ function Pets() {
                     <td>
                       <span className="pet-registration">
                         <Calendar size={15} />
-                        {pet.registrationDate}
+                        {pet.registrationDate || "N/A"}
                       </span>
                     </td>
 
                     <td>
                       <span
                         className={`pet-status ${
-                          pet.status === "Activo"
-                            ? "active"
-                            : "inactive"
+                          pet.status === "Activo" ? "active" : "inactive"
                         }`}
                       >
                         {pet.status}
@@ -495,7 +466,7 @@ function Pets() {
                   </tr>
                 ))}
 
-                {filteredPets.length === 0 && (
+                {!loading && filteredPets.length === 0 && (
                   <tr>
                     <td colSpan="7" className="pets-empty">
                       No se encontraron mascotas.
@@ -529,8 +500,11 @@ function Pets() {
                 type="submit"
                 form="pet-form"
                 className="pets-primary-btn"
+                disabled={saving}
               >
-                {modalMode === "create"
+                {saving
+                  ? "Guardando..."
+                  : modalMode === "create"
                   ? "Registrar mascota"
                   : "Guardar cambios"}
               </button>
@@ -556,30 +530,36 @@ function Pets() {
               <label htmlFor="pet-species">Especie *</label>
               <select
                 id="pet-species"
-                name="species"
-                value={formData.species}
+                name="speciesId"
+                value={formData.speciesId}
                 onChange={handleInputChange}
                 disabled={isReadOnly}
               >
                 <option value="">Selecciona una especie</option>
-                <option value="Perro">Perro</option>
-                <option value="Gato">Gato</option>
-                <option value="Ave">Ave</option>
-                <option value="Pez">Pez</option>
-                <option value="Otro">Otro</option>
+                {speciesList.map((sp) => (
+                  <option key={sp.id} value={sp.id}>
+                    {sp.name}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div className="pet-form-field">
-              <label htmlFor="pet-breed">Raza *</label>
-              <input
+              <label htmlFor="pet-breed">Raza</label>
+              <select
                 id="pet-breed"
-                name="breed"
-                value={formData.breed}
+                name="breedId"
+                value={formData.breedId}
                 onChange={handleInputChange}
-                placeholder="Ej. Labrador"
-                disabled={isReadOnly}
-              />
+                disabled={isReadOnly || !formData.speciesId}
+              >
+                <option value="">Selecciona una raza (opcional)</option>
+                {breedsList.map((br) => (
+                  <option key={br.id} value={br.id}>
+                    {br.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="pet-form-field">
@@ -594,25 +574,27 @@ function Pets() {
                 <option value="">Selecciona el sexo</option>
                 <option value="Macho">Macho</option>
                 <option value="Hembra">Hembra</option>
+                <option value="Desconocido">Desconocido</option>
               </select>
             </div>
 
             <div className="pet-form-field">
-              <label htmlFor="pet-age">Edad *</label>
+              <label htmlFor="pet-weight">Peso (kg)</label>
               <input
-                id="pet-age"
-                name="age"
-                value={formData.age}
+                id="pet-weight"
+                type="number"
+                step="0.01"
+                min="0.01"
+                name="weight"
+                value={formData.weight || ""}
                 onChange={handleInputChange}
-                placeholder="Ej. 2 años"
+                placeholder="Ej. 12.5"
                 disabled={isReadOnly}
               />
             </div>
 
             <div className="pet-form-field">
-              <label htmlFor="pet-birthdate">
-                Fecha de nacimiento
-              </label>
+              <label htmlFor="pet-birthdate">Fecha de nacimiento</label>
               <input
                 id="pet-birthdate"
                 type="date"
@@ -623,28 +605,28 @@ function Pets() {
               />
             </div>
 
-            <div className="pet-form-field pet-form-full">
-              <label htmlFor="pet-owner">Propietario *</label>
-              <select
-                id="pet-owner"
-                name="owner"
-                value={formData.owner}
-                onChange={handleInputChange}
-                disabled={isReadOnly}
-              >
-                <option value="">Selecciona un propietario</option>
-                {demoOwners.map((owner) => (
-                  <option key={owner} value={owner}>
-                    {owner}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {!isClientRole && (
+              <div className="pet-form-field pet-form-full">
+                <label htmlFor="pet-owner">Propietario *</label>
+                <select
+                  id="pet-owner"
+                  name="ownerId"
+                  value={formData.ownerId}
+                  onChange={handleInputChange}
+                  disabled={isReadOnly}
+                >
+                  <option value="">Selecciona un propietario</option>
+                  {ownersList.map((owner) => (
+                    <option key={owner.id} value={owner.id}>
+                      {owner.name} ({owner.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="pet-form-field pet-form-full">
-              <label htmlFor="pet-observations">
-                Observaciones
-              </label>
+              <label htmlFor="pet-observations">Observaciones</label>
               <textarea
                 id="pet-observations"
                 name="observations"
@@ -657,9 +639,7 @@ function Pets() {
             </div>
           </div>
 
-          {formError && (
-            <p className="pet-form-error">{formError}</p>
-          )}
+          {formError && <p className="pet-form-error">{formError}</p>}
         </form>
       </Modal>
     </div>

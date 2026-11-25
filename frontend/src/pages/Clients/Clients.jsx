@@ -1,5 +1,4 @@
-
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -12,59 +11,14 @@ import {
   Phone,
   Mail,
   MapPin,
+  Power,
 } from "lucide-react";
 
 import Sidebar from "../../components/layout/Sidebar";
 import Modal from "../../components/common/Modal";
+import { clientService } from "../../services/api/clientService";
+import { authService } from "../../services/api/authService";
 import "./Clients.css";
-
-const demoClients = [
-  {
-    id: 1,
-    name: "María González",
-    email: "maria.gonzalez@email.com",
-    phone: "951 123 4567",
-    address: "Centro, Oaxaca",
-    pets: 2,
-    status: "Activo",
-  },
-  {
-    id: 2,
-    name: "Carlos Ramírez",
-    email: "carlos.ramirez@email.com",
-    phone: "951 234 5678",
-    address: "Reforma, Oaxaca",
-    pets: 1,
-    status: "Activo",
-  },
-  {
-    id: 3,
-    name: "Ana Martínez",
-    email: "ana.martinez@email.com",
-    phone: "951 345 6789",
-    address: "Jalatlaco, Oaxaca",
-    pets: 3,
-    status: "Activo",
-  },
-  {
-    id: 4,
-    name: "Luis Hernández",
-    email: "luis.hernandez@email.com",
-    phone: "951 456 7890",
-    address: "Xochimilco, Oaxaca",
-    pets: 0,
-    status: "Inactivo",
-  },
-  {
-    id: 5,
-    name: "Sofía Torres",
-    email: "sofia.torres@email.com",
-    phone: "951 567 8901",
-    address: "Santa Lucía, Oaxaca",
-    pets: 2,
-    status: "Activo",
-  },
-];
 
 const emptyClient = {
   name: "",
@@ -74,7 +28,8 @@ const emptyClient = {
 };
 
 function Clients() {
-  const [clients, setClients] = useState(demoClients);
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
@@ -83,8 +38,26 @@ function Clients() {
   const [modalMode, setModalMode] = useState("create");
   const [selectedClient, setSelectedClient] = useState(null);
   const [formData, setFormData] = useState(emptyClient);
-
   const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const currentUser = authService.getCurrentUser();
+
+  const loadClients = async () => {
+    try {
+      setLoading(true);
+      const data = await clientService.getAll();
+      setClients(data);
+    } catch (error) {
+      console.error("Error al cargar clientes:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadClients();
+  }, []);
 
   const openCreateModal = () => {
     setModalMode("create");
@@ -129,23 +102,22 @@ function Clients() {
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
-
     setFormData((previous) => ({
       ...previous,
       [name]: value,
     }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setFormError("");
 
     if (
       !formData.name.trim() ||
       !formData.email.trim() ||
-      !formData.phone.trim() ||
-      !formData.address.trim()
+      !formData.phone.trim()
     ) {
-      setFormError("Todos los campos son obligatorios.");
+      setFormError("Nombre, correo y teléfono son obligatorios.");
       return;
     }
 
@@ -154,43 +126,52 @@ function Clients() {
       return;
     }
 
-    if (modalMode === "create") {
-      const newClient = {
-        id: Date.now(),
-        ...formData,
-        pets: 0,
-        status: "Activo",
-      };
-
-      setClients((previous) => [...previous, newClient]);
+    try {
+      setSaving(true);
+      if (modalMode === "create") {
+        await clientService.create(formData);
+        await loadClients();
+      } else if (modalMode === "edit" && selectedClient) {
+        // Tu backend actualmente solo tiene PUT /api/users/profile para el usuario autenticado
+        setClients((previous) =>
+          previous.map((client) =>
+            client.id === selectedClient.id
+              ? { ...client, ...formData }
+              : client
+          )
+        );
+      }
+      closeModal();
+    } catch (err) {
+      setFormError(
+        err.response?.data?.message ||
+          "Error al guardar cliente (verifica que seas ADMIN o que el correo no exista)."
+      );
+    } finally {
+      setSaving(false);
     }
+  };
 
-    if (modalMode === "edit" && selectedClient) {
-      setClients((previous) =>
-        previous.map((client) =>
-          client.id === selectedClient.id
-            ? { ...client, ...formData }
-            : client
-        )
+  const handleToggleStatus = async (client) => {
+    try {
+      await clientService.toggleActive(client.id);
+      await loadClients();
+    } catch (err) {
+      alert(
+        err.response?.data?.message ||
+          "Solo un usuario con rol ADMIN puede activar/desactivar clientes."
       );
     }
-
-    closeModal();
   };
 
   const filteredClients = useMemo(() => {
     return clients.filter((client) => {
-      const matchesSearch = [
-        client.name,
-        client.email,
-        client.phone,
-      ].some((value) =>
-        value.toLowerCase().includes(search.toLowerCase())
+      const matchesSearch = [client.name, client.email, client.phone].some(
+        (value) => (value || "").toLowerCase().includes(search.toLowerCase())
       );
 
       const matchesStatus =
-        statusFilter === "Todos" ||
-        client.status === statusFilter;
+        statusFilter === "Todos" || client.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -204,32 +185,23 @@ function Clients() {
     (client) => client.status === "Inactivo"
   ).length;
 
-  const totalPets = clients.reduce(
-    (total, client) => total + client.pets,
-    0
-  );
+  const totalPets = clients.reduce((total, client) => total + client.pets, 0);
 
   return (
     <div className="clients-layout">
-      <Sidebar role="VETERINARIAN" />
+      <Sidebar role={currentUser?.role || "VETERINARIAN"} />
 
       <main className="clients-main">
         <header className="clients-header">
           <div>
-            <span className="clients-breadcrumb">
-              Gestión / Clientes
-            </span>
+            <span className="clients-breadcrumb">Gestión / Clientes</span>
             <h1>Clientes</h1>
             <p>
-              Administra la información de los propietarios
-              de las mascotas.
+              Administra la información de los propietarios de las mascotas.
             </p>
           </div>
 
-          <button
-            className="clients-primary-btn"
-            onClick={openCreateModal}
-          >
+          <button className="clients-primary-btn" onClick={openCreateModal}>
             <Plus size={18} />
             Nuevo cliente
           </button>
@@ -303,7 +275,9 @@ function Clients() {
             <div>
               <h2>Directorio de clientes</h2>
               <p>
-                {filteredClients.length} clientes encontrados
+                {loading
+                  ? "Cargando clientes..."
+                  : `${filteredClients.length} clientes encontrados`}
               </p>
             </div>
           </div>
@@ -363,9 +337,7 @@ function Clients() {
                     <td>
                       <span
                         className={`client-status ${
-                          client.status === "Activo"
-                            ? "active"
-                            : "inactive"
+                          client.status === "Activo" ? "active" : "inactive"
                         }`}
                       >
                         {client.status}
@@ -387,12 +359,19 @@ function Clients() {
                         >
                           <Pencil size={17} />
                         </button>
+
+                        <button
+                          title="Activar / Desactivar"
+                          onClick={() => handleToggleStatus(client)}
+                        >
+                          <Power size={17} />
+                        </button>
                       </div>
                     </td>
                   </tr>
                 ))}
 
-                {filteredClients.length === 0 && (
+                {!loading && filteredClients.length === 0 && (
                   <tr>
                     <td colSpan="6" className="clients-empty">
                       No se encontraron clientes.
@@ -411,8 +390,8 @@ function Clients() {
             modalMode === "create"
               ? "Registrar nuevo cliente"
               : modalMode === "edit"
-                ? "Editar cliente"
-                : "Información del cliente"
+              ? "Editar cliente"
+              : "Información del cliente"
           }
           description={
             modalMode === "view"
@@ -435,8 +414,11 @@ function Clients() {
                   type="submit"
                   form="client-form"
                   className="clients-primary-btn"
+                  disabled={saving}
                 >
-                  {modalMode === "create"
+                  {saving
+                    ? "Guardando..."
+                    : modalMode === "create"
                     ? "Guardar cliente"
                     : "Guardar cambios"}
                 </button>
@@ -485,7 +467,7 @@ function Clients() {
               </div>
 
               <div className="client-form-field">
-                <label htmlFor="client-address">Dirección *</label>
+                <label htmlFor="client-address">Dirección</label>
                 <input
                   id="client-address"
                   name="address"
@@ -497,9 +479,7 @@ function Clients() {
               </div>
             </div>
 
-            {formError && (
-              <p className="client-form-error">{formError}</p>
-            )}
+            {formError && <p className="client-form-error">{formError}</p>}
           </form>
         </Modal>
       </main>
@@ -508,4 +488,3 @@ function Clients() {
 }
 
 export default Clients;
-

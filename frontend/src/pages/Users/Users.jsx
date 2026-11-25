@@ -1,5 +1,4 @@
-
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -16,74 +15,25 @@ import {
 
 import Sidebar from "../../components/layout/Sidebar";
 import Modal from "../../components/common/Modal";
+import { userService } from "../../services/api/userService";
+import { authService } from "../../services/api/authService";
 import "./Users.css";
-
-const demoUsers = [
-  {
-    id: 1,
-    name: "Carlos Rodríguez",
-    email: "carlos@vetcare.com",
-    phone: "555 123 4567",
-    role: "Administrador",
-    status: "Activo",
-    registrationDate: "12/03/2026",
-  },
-  {
-    id: 2,
-    name: "Mariana López",
-    email: "mariana@vetcare.com",
-    phone: "555 234 5678",
-    role: "Veterinario",
-    status: "Activo",
-    registrationDate: "15/03/2026",
-  },
-  {
-    id: 3,
-    name: "Fernando García",
-    email: "fernando@email.com",
-    phone: "555 345 6789",
-    role: "Cliente",
-    status: "Activo",
-    registrationDate: "20/03/2026",
-  },
-  {
-    id: 4,
-    name: "Andrea Martínez",
-    email: "andrea@vetcare.com",
-    phone: "555 456 7890",
-    role: "Veterinario",
-    status: "Inactivo",
-    registrationDate: "22/03/2026",
-  },
-  {
-    id: 5,
-    name: "Roberto Hernández",
-    email: "roberto@email.com",
-    phone: "555 567 8901",
-    role: "Cliente",
-    status: "Activo",
-    registrationDate: "25/03/2026",
-  },
-  {
-    id: 6,
-    name: "Lucía Torres",
-    email: "lucia@email.com",
-    phone: "555 678 9012",
-    role: "Cliente",
-    status: "Inactivo",
-    registrationDate: "28/03/2026",
-  },
-];
 
 const emptyForm = {
   name: "",
   email: "",
+  password: "",
   phone: "",
   role: "Cliente",
 };
 
 function Users() {
-  const [users, setUsers] = useState(demoUsers);
+  const currentUser = authService.getCurrentUser();
+  const currentRole = currentUser?.role || "ADMIN";
+
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("Todos");
   const [statusFilter, setStatusFilter] = useState("Todos");
@@ -93,6 +43,24 @@ function Users() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const data = await userService.getAll();
+      setUsers(data);
+    } catch (error) {
+      console.error("Error al cargar usuarios:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   const totalUsers = users.length;
 
@@ -104,13 +72,9 @@ function Users() {
     (user) => user.role === "Veterinario"
   ).length;
 
-  const clients = users.filter(
-    (user) => user.role === "Cliente"
-  ).length;
+  const clients = users.filter((user) => user.role === "Cliente").length;
 
-  const activeUsers = users.filter(
-    (user) => user.status === "Activo"
-  ).length;
+  const activeUsers = users.filter((user) => user.status === "Activo").length;
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
@@ -119,7 +83,7 @@ function Users() {
       const matchesSearch =
         user.name.toLowerCase().includes(normalizedSearch) ||
         user.email.toLowerCase().includes(normalizedSearch) ||
-        user.phone.includes(normalizedSearch);
+        (user.phone || "").includes(normalizedSearch);
 
       const matchesRole =
         roleFilter === "Todos" || user.role === roleFilter;
@@ -136,12 +100,14 @@ function Users() {
     setSelectedUser(null);
     setForm(emptyForm);
     setErrors({});
+    setServerError("");
     setModalOpen(true);
   };
 
   const openViewModal = (user) => {
     setSelectedUser(user);
     setModalMode("view");
+    setServerError("");
     setModalOpen(true);
   };
 
@@ -151,10 +117,12 @@ function Users() {
     setForm({
       name: user.name,
       email: user.email,
-      phone: user.phone,
+      password: "",
+      phone: user.phone === "Sin teléfono" ? "" : user.phone,
       role: user.role,
     });
     setErrors({});
+    setServerError("");
     setModalOpen(true);
   };
 
@@ -162,6 +130,7 @@ function Users() {
     setModalOpen(false);
     setSelectedUser(null);
     setErrors({});
+    setServerError("");
   };
 
   const handleInputChange = (event) => {
@@ -178,6 +147,7 @@ function Users() {
         [name]: "",
       }));
     }
+    setServerError("");
   };
 
   const validateForm = () => {
@@ -193,21 +163,17 @@ function Users() {
       newErrors.email = "El correo electrónico es obligatorio.";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       newErrors.email = "Ingresa un correo electrónico válido.";
-    } else {
-      const emailExists = users.some(
-        (user) =>
-          user.email.toLowerCase() === form.email.trim().toLowerCase() &&
-          user.id !== selectedUser?.id
-      );
+    }
 
-      if (emailExists) {
-        newErrors.email = "Ya existe un usuario con este correo.";
+    if (modalMode === "create") {
+      if (!form.password.trim()) {
+        newErrors.password = "La contraseña inicial es obligatoria.";
+      } else if (form.password.trim().length < 8) {
+        newErrors.password = "La contraseña debe tener al menos 8 caracteres.";
       }
     }
 
-    if (!form.phone.trim()) {
-      newErrors.phone = "El teléfono es obligatorio.";
-    } else if (!/^[0-9+\s()-]{8,20}$/.test(form.phone.trim())) {
+    if (form.phone.trim() && !/^[0-9+\s()-]{8,20}$/.test(form.phone.trim())) {
       newErrors.phone = "Ingresa un número de teléfono válido.";
     }
 
@@ -220,62 +186,51 @@ function Users() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setServerError("");
 
     if (!validateForm()) return;
 
-    if (modalMode === "create") {
-      const newUser = {
-        id: Date.now(),
-        name: form.name.trim(),
-        email: form.email.trim().toLowerCase(),
-        phone: form.phone.trim(),
-        role: form.role,
-        status: "Activo",
-        registrationDate: new Intl.DateTimeFormat("es-MX").format(
-          new Date()
-        ),
-      };
-
-      setUsers((previous) => [newUser, ...previous]);
-    }
-
-    if (modalMode === "edit" && selectedUser) {
-      setUsers((previous) =>
-        previous.map((user) =>
-          user.id === selectedUser.id
-            ? {
-                ...user,
-                name: form.name.trim(),
-                email: form.email.trim().toLowerCase(),
-                phone: form.phone.trim(),
-                role: form.role,
-              }
-            : user
-        )
+    try {
+      setSaving(true);
+      if (modalMode === "create") {
+        await userService.create(form);
+      } else if (modalMode === "edit" && selectedUser) {
+        await userService.update(selectedUser.id, form);
+      }
+      await loadUsers();
+      closeModal();
+    } catch (err) {
+      setServerError(
+        err.response?.data?.message ||
+          "Error al guardar el usuario. Verifica los datos o permisos."
       );
+    } finally {
+      setSaving(false);
     }
-
-    closeModal();
   };
 
-  const toggleUserStatus = (user) => {
+  const toggleUserStatus = async (user) => {
     const newStatus = user.status === "Activo" ? "Inactivo" : "Activo";
 
     const confirmed = window.confirm(
-      `¿Deseas ${newStatus === "Activo" ? "activar" : "desactivar"} la cuenta de ${user.name}?`
+      `¿Deseas ${
+        newStatus === "Activo" ? "activar" : "desactivar"
+      } la cuenta de ${user.name}?`
     );
 
     if (!confirmed) return;
 
-    setUsers((previous) =>
-      previous.map((item) =>
-        item.id === user.id
-          ? { ...item, status: newStatus }
-          : item
-      )
-    );
+    try {
+      await userService.toggleActive(user.id);
+      await loadUsers();
+    } catch (err) {
+      alert(
+        err.response?.data?.message ||
+          "No se pudo cambiar el estado del usuario."
+      );
+    }
   };
 
   const isReadOnly = modalMode === "view";
@@ -284,26 +239,24 @@ function Users() {
     modalMode === "create"
       ? "Registrar usuario"
       : modalMode === "edit"
-        ? "Editar usuario"
-        : "Información del usuario";
+      ? "Editar usuario"
+      : "Información del usuario";
 
   const modalDescription =
     modalMode === "create"
       ? "Completa los datos para registrar una nueva cuenta."
       : modalMode === "edit"
-        ? "Modifica la información de la cuenta seleccionada."
-        : "Consulta los datos y el estado de esta cuenta.";
+      ? "Modifica la información de la cuenta seleccionada."
+      : "Consulta los datos y el estado de esta cuenta.";
 
   return (
     <div className="users-layout">
-      <Sidebar role="ADMIN" />
+      <Sidebar role={currentRole} />
 
       <main className="users-main">
         <header className="users-header">
           <div>
-            <span className="users-breadcrumb">
-              Administración / Usuarios
-            </span>
+            <span className="users-breadcrumb">Administración / Usuarios</span>
             <h1>Gestión de usuarios</h1>
             <p>Administra las cuentas y permisos de VetCare.</p>
           </div>
@@ -366,7 +319,11 @@ function Users() {
           <div className="users-content-header">
             <div>
               <h2>Usuarios registrados</h2>
-              <p>Consulta las cuentas existentes en el sistema.</p>
+              <p>
+                {loading
+                  ? "Cargando usuarios..."
+                  : "Consulta las cuentas existentes en el sistema."}
+              </p>
             </div>
 
             <span className="users-active-counter">
@@ -458,8 +415,8 @@ function Users() {
                           user.role === "Administrador"
                             ? "admin"
                             : user.role === "Veterinario"
-                              ? "vet"
-                              : "client"
+                            ? "vet"
+                            : "client"
                         }`}
                       >
                         {user.role}
@@ -528,7 +485,7 @@ function Users() {
                   </tr>
                 ))}
 
-                {filteredUsers.length === 0 && (
+                {!loading && filteredUsers.length === 0 && (
                   <tr>
                     <td colSpan="6" className="users-empty">
                       No se encontraron usuarios.
@@ -575,8 +532,11 @@ function Users() {
                 type="submit"
                 form="users-form"
                 className="users-modal-primary"
+                disabled={saving}
               >
-                {modalMode === "create"
+                {saving
+                  ? "Guardando..."
+                  : modalMode === "create"
                   ? "Registrar usuario"
                   : "Guardar cambios"}
               </button>
@@ -596,8 +556,8 @@ function Users() {
                 selectedUser.role === "Administrador"
                   ? "admin"
                   : selectedUser.role === "Veterinario"
-                    ? "vet"
-                    : "client"
+                  ? "vet"
+                  : "client"
               }`}
             >
               {selectedUser.role}
@@ -641,7 +601,7 @@ function Users() {
             noValidate
           >
             <div className="users-form-field">
-              <label htmlFor="user-name">Nombre completo</label>
+              <label htmlFor="user-name">Nombre completo *</label>
               <input
                 id="user-name"
                 name="name"
@@ -657,7 +617,7 @@ function Users() {
             </div>
 
             <div className="users-form-field">
-              <label htmlFor="user-email">Correo electrónico</label>
+              <label htmlFor="user-email">Correo electrónico *</label>
               <input
                 id="user-email"
                 name="email"
@@ -671,6 +631,26 @@ function Users() {
                 <small className="users-form-error">{errors.email}</small>
               )}
             </div>
+
+            {modalMode === "create" && (
+              <div className="users-form-field">
+                <label htmlFor="user-password">
+                  Contraseña inicial (mín. 8 caracteres) *
+                </label>
+                <input
+                  id="user-password"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={handleInputChange}
+                  className={errors.password ? "input-error" : ""}
+                />
+                {errors.password && (
+                  <small className="users-form-error">{errors.password}</small>
+                )}
+              </div>
+            )}
 
             <div className="users-form-field">
               <label htmlFor="user-phone">Teléfono</label>
@@ -689,7 +669,7 @@ function Users() {
             </div>
 
             <div className="users-form-field">
-              <label htmlFor="user-role">Rol del usuario</label>
+              <label htmlFor="user-role">Rol del usuario *</label>
               <select
                 id="user-role"
                 name="role"
@@ -706,11 +686,11 @@ function Users() {
               )}
             </div>
 
-            <p className="users-form-note">
-              La cuenta se registrará como activa. La configuración de
-              credenciales y acceso se realizará posteriormente desde el
-              backend.
-            </p>
+            {serverError && (
+              <p className="users-form-error" style={{ marginTop: "8px" }}>
+                {serverError}
+              </p>
+            )}
           </form>
         )}
       </Modal>
