@@ -1,0 +1,568 @@
+
+.client-treatments-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #f7f9fb;
+}
+
+.client-treatments-main {
+  flex: 1;
+  min-width: 0;
+  margin-left: 250px;
+  padding: 35px;
+}
+
+.client-treatments-header {
+  margin-bottom: 28px;
+}
+
+.client-treatments-eyebrow {
+  color: #3976a1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.3px;
+}
+
+.client-treatments-header h1 {
+  margin: 8px 0;
+  color: #263746;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.client-treatments-header p {
+  margin: 0;
+  color: #7b8995;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.client-treatments-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 17px;
+  margin-bottom: 25px;
+}
+
+.client-treatment-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #edf0f3;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(34, 60, 80, 0.035);
+}
+
+.client-treatment-stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+}
+
+.client-treatment-stat-icon.blue {
+  color: #3976a1;
+  background: #eaf3fa;
+}
+
+.client-treatment-stat-icon.orange {
+  color: #d68a2e;
+  background: #fff4e4;
+}
+
+.client-treatment-stat-icon.green {
+  color: #26966b;
+  background: #e8f7f0;
+}
+
+.client-treatment-stat-icon.purple {
+  color: #8665b5;
+  background: #f1ebfa;
+}
+
+.client-treatment-stat-card div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.client-treatment-stat-card span {
+  color: #87939d;
+  font-size: 11px;
+}
+
+.client-treatment-stat-card strong {
+  color: #2d4050;
+  font-size: 23px;
+}
+
+.client-treatments-panel {
+  padding: 25px;
+  background: #fff;
+  border: 1px solid #edf0f3;
+  border-radius: 13px;
+  box-shadow: 0 3px 12px rgba(34, 60, 80, 0.035);
+}
+
+.client-treatments-panel-header {
+  margin-bottom: 22px;
+}
+
+.client-treatments-panel-header h2 {
+  margin: 0 0 6px;
+  color: #2d4050;
+  font-size: 18px;
+}
+
+.client-treatments-panel-header p {
+  margin: 0;
+  color: #8995a0;
+  font-size: 12px;
+}
+
+.client-treatments-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 20px;
+}
+
+.client-treatments-search {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 13px;
+  background: #fbfcfd;
+  border: 1px solid #e3e9ee;
+  border-radius: 8px;
+}
+
+.client-treatments-search svg {
+  flex-shrink: 0;
+  color: #8a9aa7;
+}
+
+.client-treatments-search input {
+  width: 100%;
+  min-width: 0;
+  color: #3d4e5b;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.client-treatments-search input::placeholder {
+  color: #a5afb7;
+}
+
+.client-treatments-filter {
+  min-height: 42px;
+  padding: 0 12px;
+  color: #536674;
+  background: #fbfcfd;
+  border: 1px solid #e3e9ee;
+  border-radius: 8px;
+  outline: none;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.client-treatments-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.client-treatments-table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+}
+
+.client-treatments-table thead {
+  background: #f8fafb;
+}
+
+.client-treatments-table th {
+  padding: 14px 12px;
+  color: #84919b;
+  border-bottom: 1px solid #edf0f3;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.client-treatments-table td {
+  padding: 15px 12px;
+  border-bottom: 1px solid #f0f2f4;
+  color: #566875;
+  font-size: 11px;
+  vertical-align: middle;
+}
+
+.client-treatments-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.client-treatments-table tbody tr:hover {
+  background: #fbfdfe;
+}
+
+.client-treatment-pet-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.client-treatment-pet-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 35px;
+  height: 35px;
+  color: #3976a1;
+  background: #eaf3fa;
+  border-radius: 9px;
+}
+
+.client-treatment-pet-cell div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.client-treatment-pet-cell strong {
+  color: #3c5060;
+  font-size: 12px;
+}
+
+.client-treatment-pet-cell span {
+  color: #929da5;
+  font-size: 10px;
+}
+
+.client-treatment-name {
+  color: #435766;
+  font-size: 11px;
+}
+
+.client-treatment-medication {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #617582;
+}
+
+.client-treatment-medication svg {
+  color: #8b9ca8;
+}
+
+.client-treatment-veterinarian {
+  color: #667985;
+}
+
+.client-treatment-period {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #657784;
+  font-size: 10px;
+}
+
+.client-treatment-period small {
+  color: #98a3ab;
+  font-size: 10px;
+}
+
+.client-treatment-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.client-treatment-status.pending {
+  color: #a97527;
+  background: #fff3df;
+}
+
+.client-treatment-status.active {
+  color: #3976a1;
+  background: #eaf3fa;
+}
+
+.client-treatment-status.completed {
+  color: #27805e;
+  background: #e7f6ee;
+}
+
+.client-treatment-view-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  color: #3976a1;
+  background: #edf5fa;
+  border: 1px solid #dcebf5;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.client-treatment-view-button:hover {
+  background: #dfeef8;
+}
+
+.client-treatments-results {
+  padding-top: 16px;
+  color: #929da5;
+  border-top: 1px solid #f0f2f4;
+  font-size: 11px;
+}
+
+.client-treatments-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 15px;
+  color: #9aa7b0;
+  text-align: center;
+}
+
+.client-treatments-empty svg {
+  margin-bottom: 13px;
+}
+
+.client-treatments-empty h3 {
+  margin: 0 0 7px;
+  color: #536674;
+  font-size: 15px;
+}
+
+.client-treatments-empty p {
+  max-width: 350px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.client-treatments-reminder {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 18px;
+  margin-top: 20px;
+  background: #fff8eb;
+  border: 1px solid #f5e8cc;
+  border-radius: 10px;
+}
+
+.client-treatments-reminder-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #b17b2e;
+}
+
+.client-treatments-reminder h3 {
+  margin: 0 0 6px;
+  color: #8d692f;
+  font-size: 13px;
+}
+
+.client-treatments-reminder p {
+  margin: 0;
+  color: #9a8057;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* Detalle del tratamiento */
+
+.client-treatment-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 21px;
+}
+
+.client-treatment-detail-status {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.client-treatment-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+  padding: 17px;
+  background: #f8fafb;
+  border: 1px solid #edf0f3;
+  border-radius: 9px;
+}
+
+.client-treatment-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.client-treatment-detail-item span,
+.client-treatment-date-range span {
+  color: #8b98a1;
+  font-size: 11px;
+}
+
+.client-treatment-detail-item strong,
+.client-treatment-date-range strong {
+  color: #405462;
+  font-size: 12px;
+}
+
+.client-treatment-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.client-treatment-detail-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #3f5665;
+  font-size: 13px;
+}
+
+.client-treatment-detail-section h3 svg {
+  color: #3976a1;
+}
+
+.client-treatment-detail-section > p {
+  margin: 0;
+  padding: 13px;
+  color: #687985;
+  background: #f8fafb;
+  border: 1px solid #edf0f3;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.client-treatment-medication-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 15px;
+  background: #f8fafb;
+  border: 1px solid #edf0f3;
+  border-radius: 8px;
+}
+
+.client-treatment-medication-card > strong {
+  color: #405462;
+  font-size: 13px;
+}
+
+.client-treatment-medication-card > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.client-treatment-medication-card span {
+  color: #71818d;
+  font-size: 11px;
+}
+
+.client-treatment-date-range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.client-treatment-date-range > div {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 13px;
+  background: #f8fafb;
+  border: 1px solid #edf0f3;
+  border-radius: 8px;
+}
+
+.client-treatment-modal-close {
+  min-height: 38px;
+  padding: 0 18px;
+  color: #fff;
+  background: #3976a1;
+  border: none;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.client-treatment-modal-close:hover {
+  background: #2e648a;
+}
+
+@media (max-width: 1150px) {
+  .client-treatments-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .client-treatments-main {
+    margin-left: 0;
+    padding: 25px 18px;
+  }
+}
+
+@media (max-width: 600px) {
+  .client-treatments-header h1 {
+    font-size: 23px;
+  }
+
+  .client-treatments-stats {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .client-treatments-panel {
+    padding: 17px;
+  }
+
+  .client-treatments-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .client-treatments-filter {
+    width: 100%;
+  }
+
+  .client-treatment-detail-grid,
+  .client-treatment-date-range {
+    grid-template-columns: 1fr;
+  }
+}

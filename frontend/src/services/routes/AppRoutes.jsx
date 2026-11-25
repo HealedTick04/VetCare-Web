@@ -1,3 +1,4 @@
+
 import { Routes, Route, Navigate } from "react-router-dom";
 
 // Páginas
@@ -15,6 +16,10 @@ import Profile from "../../pages/Profile/Profile";
 import Users from "../../pages/Users/Users";
 import Reports from "../../pages/Reports/Reports";
 import Settings from "../../pages/Settings/Settings";
+import ClientMedicalRecords from "../../pages/ClientMedicalRecords/ClientMedicalRecords";
+import ClientAppointments from "../../pages/ClientAppointments/ClientAppointments";
+import ClientTreatments from "../../pages/ClientTreatments/ClientTreatments";
+import ClientProfile from "../../pages/ClientProfile/ClientProfile";
 
 function AppRoutes() {
   return (
@@ -24,30 +29,40 @@ function AppRoutes() {
 
       {/* Páginas principales */}
       <Route path="/dashboard" element={<Dashboard />} />
-
       <Route path="/appointments" element={<Appointments />} />
-
       <Route path="/clients" element={<Clients />} />
-
       <Route path="/pets" element={<Pets />} />
-
       <Route path="/medical-records" element={<MedicalRecords />} />
-
       <Route path="/treatments" element={<Treatments />} />
-
       <Route path="/services" element={<Services />} />
-      
       <Route path="/inventory" element={<Inventory />} />
-
       <Route path="/notifications" element={<Notifications />} />
-
       <Route path="/profile" element={<Profile />} />
-
       <Route path="/users" element={<Users />} />
-
       <Route path="/reports" element={<Reports />} />
-
       <Route path="/settings" element={<Settings />} />
+
+      {/* Páginas del cliente */}
+      <Route
+        path="/client/medical-records"
+        element={<ClientMedicalRecords />}
+      />
+
+      <Route
+        path="/client/appointments"
+        element={<ClientAppointments />}
+      />
+
+      <Route 
+      path="/client/profile"
+      element={<ClientProfile />}
+      />
+
+      <Route
+       path="/client/treatments"
+       element={<ClientTreatments />}
+       />
+
       {/* Redirecciones */}
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
