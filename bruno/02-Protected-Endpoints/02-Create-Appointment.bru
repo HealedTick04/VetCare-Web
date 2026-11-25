@@ -1,0 +1,33 @@
+meta {
+  name: 02 - Agendar Cita Veterinaria
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/appointments
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clientToken}}
+}
+
+body:json {
+  {
+    "petId": 1,
+    "veterinarianId": 2,
+    "appointmentDate": "2026-12-15T10:30:00",
+    "durationMinutes": 30,
+    "reason": "Revisión general y refuerzo de vacuna",
+    "clientNotes": "Prueba automatizada desde Bruno"
+  }
+}
+
+tests {
+  test("Status 201 Cita creada", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.status).to.equal("PENDING");
+  });
+}

@@ -1,0 +1,29 @@
+meta {
+  name: 03 - Error 404 Recurso No Encontrado
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/pets/999999
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "speciesId": 1,
+    "name": "Fantasma",
+    "sex": "MALE"
+  }
+}
+
+tests {
+  test("Status 404 Not Found", function() {
+    expect(res.status).to.equal(404);
+  });
+}

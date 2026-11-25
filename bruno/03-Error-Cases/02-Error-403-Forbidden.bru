@@ -1,0 +1,30 @@
+meta {
+  name: 02 - Error 403 Acceso Denegado por Rol
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/services
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clientToken}}
+}
+
+body:json {
+  {
+    "name": "Servicio No Autorizado",
+    "description": "Intento de creacion con rol CLIENT",
+    "price": 500.00,
+    "durationMinutes": 30
+  }
+}
+
+tests {
+  test("Status 403 Forbidden para rol CLIENT", function() {
+    expect(res.status).to.equal(403);
+  });
+}
