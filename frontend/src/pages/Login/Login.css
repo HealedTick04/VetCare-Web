@@ -343,3 +343,172 @@
     font-size: 30px;
   }
 }
+
+
+/* Enlace de recuperación */
+.recovery-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #3976a1;
+  font-size: 0.875rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.recovery-link:hover {
+  text-decoration: underline;
+}
+
+/* Fondo del modal */
+.recovery-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  background: rgba(20, 35, 50, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+/* Modal */
+.recovery-modal {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  padding: 38px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  animation: recovery-appear 0.2s ease;
+}
+
+@keyframes recovery-appear {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.recovery-close {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.recovery-close:hover {
+  background: #e2e8f0;
+}
+
+.recovery-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 20px;
+  border-radius: 16px;
+  background: #eaf3f9;
+  color: #3976a1;
+  font-size: 28px;
+}
+
+.recovery-modal h2 {
+  margin: 0 0 12px;
+  color: #334155;
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+.recovery-description {
+  margin: 0 0 25px;
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.recovery-modal .form-group {
+  margin-bottom: 18px;
+}
+
+.recovery-modal .form-group input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.recovery-submit {
+  width: 100%;
+  margin-top: 5px;
+}
+
+.recovery-error {
+  margin: 0 0 15px;
+  color: #dc2626;
+  font-size: 0.85rem;
+}
+
+.recovery-back {
+  display: block;
+  margin: 20px auto 0;
+  padding: 5px;
+  border: none;
+  background: transparent;
+  color: #3976a1;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.recovery-back:hover {
+  text-decoration: underline;
+}
+
+.recovery-success {
+  text-align: center;
+}
+
+.recovery-success-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #16a34a;
+  font-size: 30px;
+  font-weight: bold;
+}
+
+.recovery-success p {
+  margin: 0 0 25px;
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 480px) {
+  .recovery-modal {
+    padding: 32px 22px;
+  }
+
+  .recovery-modal h2 {
+    font-size: 1.3rem;
+  }
+}
