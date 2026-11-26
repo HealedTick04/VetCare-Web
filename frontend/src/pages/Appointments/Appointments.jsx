@@ -1,5 +1,4 @@
-
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   List,
@@ -17,6 +16,9 @@ import {
 
 import Sidebar from "../../components/layout/Sidebar";
 import Modal from "../../components/common/Modal";
+import { appointmentService } from "../../services/api/appointmentService";
+import { petService } from "../../services/api/petService";
+import { authService } from "../../services/api/authService";
 import "./Appointments.css";
 
 function getDateString(year, month, day) {
@@ -49,56 +51,6 @@ function formatDate(dateString) {
   });
 }
 
-const currentYear = new Date().getFullYear();
-const currentMonth = new Date().getMonth();
-
-const demoAppointments = [
-  {
-    id: 1,
-    date: getDateString(currentYear, currentMonth, 23),
-    time: "09:00",
-    pet: "Max",
-    owner: "Carlos Mendoza",
-    service: "Consulta general",
-    veterinarian: "Dr. García",
-    status: "CONFIRMED",
-    notes: "Revisión general de rutina.",
-  },
-  {
-    id: 2,
-    date: getDateString(currentYear, currentMonth, 23),
-    time: "11:30",
-    pet: "Luna",
-    owner: "María González",
-    service: "Vacunación",
-    veterinarian: "Dr. García",
-    status: "PENDING",
-    notes: "",
-  },
-  {
-    id: 3,
-    date: getDateString(currentYear, currentMonth, 25),
-    time: "10:00",
-    pet: "Rocky",
-    owner: "Ana Martínez",
-    service: "Revisión médica",
-    veterinarian: "Dra. López",
-    status: "CONFIRMED",
-    notes: "",
-  },
-  {
-    id: 4,
-    date: getDateString(currentYear, currentMonth, 27),
-    time: "12:00",
-    pet: "Milo",
-    owner: "José Ramírez",
-    service: "Desparasitación",
-    veterinarian: "Dr. García",
-    status: "CANCELLED",
-    notes: "",
-  },
-];
-
 const statusLabels = {
   CONFIRMED: "Confirmada",
   PENDING: "Pendiente",
@@ -110,19 +62,25 @@ const statusLabels = {
 const emptyForm = {
   date: getTodayDate(),
   time: "09:00",
+  petId: "",
   pet: "",
   owner: "",
   service: "Consulta general",
-  veterinarian: "Dr. García",
+  veterinarianId: "",
+  veterinarian: "",
   status: "PENDING",
   notes: "",
 };
 
-const veterinarians = ["Dr. García", "Dra. López", "Dr. Hernández"];
-
 function Appointments() {
-  const [role] = useState("VETERINARIAN");
-  const [appointments, setAppointments] = useState(demoAppointments);
+  const currentUser = authService.getCurrentUser();
+  const role = currentUser?.role || "VETERINARIAN";
+
+  const [appointments, setAppointments] = useState([]);
+  const [petsList, setPetsList] = useState([]);
+  const [vetsList, setVetsList] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const [view, setView] = useState("calendar");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(new Date().getDate());
@@ -133,6 +91,41 @@ function Appointments() {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
   const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [apptsData, petsData] = await Promise.all([
+        appointmentService.getAll(),
+        petService.getAll(),
+      ]);
+      setAppointments(apptsData);
+      setPetsList(petsData);
+
+      // Si es staff (ADMIN o VETERINARIAN) cargamos lista de veterinarios desde /users
+      if (role !== "CLIENT") {
+        const vetsData = await appointmentService.getVeterinarians();
+        setVetsList(vetsData);
+      } else if (currentUser) {
+        // Si es cliente, puede seleccionar su propio ID o un veterinario si está disponible
+        try {
+          const vetsData = await appointmentService.getVeterinarians();
+          setVetsList(vetsData);
+        } catch {
+          setVetsList([]);
+        }
+      }
+    } catch (error) {
+      console.error("Error al cargar citas:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -199,6 +192,7 @@ function Appointments() {
     setFormData({
       ...emptyForm,
       date: selectedDate,
+      veterinarianId: role === "VETERINARIAN" ? currentUser?.id : "",
     });
     setFormError("");
     setIsModalOpen(true);
@@ -210,9 +204,11 @@ function Appointments() {
     setFormData({
       date: appointment.date,
       time: appointment.time,
+      petId: appointment.petId || "",
       pet: appointment.pet,
       owner: appointment.owner,
       service: appointment.service,
+      veterinarianId: appointment.veterinarianId || "",
       veterinarian: appointment.veterinarian,
       status: appointment.status,
       notes: appointment.notes || "",
@@ -227,9 +223,11 @@ function Appointments() {
     setFormData({
       date: appointment.date,
       time: appointment.time,
+      petId: appointment.petId || "",
       pet: appointment.pet,
       owner: appointment.owner,
       service: appointment.service,
+      veterinarianId: appointment.veterinarianId || "",
       veterinarian: appointment.veterinarian,
       status: appointment.status,
       notes: appointment.notes || "",
@@ -247,118 +245,113 @@ function Appointments() {
   const handleInputChange = (event) => {
     const { name, value } = event.target;
 
+    if (name === "petId") {
+      const selectedPet = petsList.find((p) => String(p.id) === String(value));
+      setFormData((previous) => ({
+        ...previous,
+        petId: value,
+        pet: selectedPet ? selectedPet.name : "",
+        owner: selectedPet ? selectedPet.owner : "",
+      }));
+      return;
+    }
+
     setFormData((previous) => ({
       ...previous,
       [name]: value,
     }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-
-    if (
-      !formData.date ||
-      !formData.time ||
-      !formData.pet.trim() ||
-      !formData.owner.trim() ||
-      !formData.service.trim() ||
-      !formData.veterinarian
-    ) {
-      setFormError("Completa todos los campos obligatorios.");
-      return;
-    }
-
-    const hasConflict = appointments.some(
-      (appointment) =>
-        appointment.id !== selectedAppointment?.id &&
-        appointment.date === formData.date &&
-        appointment.time === formData.time &&
-        appointment.veterinarian === formData.veterinarian &&
-        appointment.status !== "CANCELLED"
-    );
-
-    if (hasConflict) {
-      setFormError(
-        "Este veterinario ya tiene una cita asignada en esa fecha y hora."
-      );
-      return;
-    }
-
-    const appointmentData = {
-      ...formData,
-      pet: formData.pet.trim(),
-      owner: formData.owner.trim(),
-      service: formData.service.trim(),
-      notes: formData.notes.trim(),
-    };
+    setFormError("");
 
     if (modalMode === "create") {
-      setAppointments((previous) => [
-        ...previous,
-        {
-          id: Date.now(),
-          ...appointmentData,
-        },
-      ]);
+      if (
+        !formData.date ||
+        !formData.time ||
+        !formData.petId ||
+        !formData.service.trim() ||
+        !formData.veterinarianId
+      ) {
+        setFormError("Completa todos los campos obligatorios.");
+        return;
+      }
+
+      try {
+        setSaving(true);
+        await appointmentService.create(formData);
+        await loadData();
+
+        const [selectedYear, selectedMonth, selectedDateDay] =
+          formData.date.split("-").map(Number);
+        setCurrentDate(new Date(selectedYear, selectedMonth - 1, 1));
+        setSelectedDay(selectedDateDay);
+        closeModal();
+      } catch (err) {
+        setFormError(
+          err.response?.data?.message ||
+            "Error al crear la cita (recuerda que debe ser en una fecha/hora futura)."
+        );
+      } finally {
+        setSaving(false);
+      }
+    } else if (modalMode === "edit" && selectedAppointment) {
+      // Tu backend actualiza el estado de la cita mediante PATCH /api/appointments/{id}/status
+      try {
+        setSaving(true);
+        await appointmentService.updateStatus(
+          selectedAppointment.id,
+          formData.status
+        );
+        await loadData();
+        closeModal();
+      } catch (err) {
+        setFormError(
+          err.response?.data?.message || "No se pudo actualizar el estado."
+        );
+      } finally {
+        setSaving(false);
+      }
     }
-
-    if (modalMode === "edit" && selectedAppointment) {
-      setAppointments((previous) =>
-        previous.map((appointment) =>
-          appointment.id === selectedAppointment.id
-            ? { ...appointment, ...appointmentData }
-            : appointment
-        )
-      );
-    }
-
-    const [selectedYear, selectedMonth, selectedDateDay] =
-      appointmentData.date.split("-").map(Number);
-
-    setCurrentDate(new Date(selectedYear, selectedMonth - 1, 1));
-    setSelectedDay(selectedDateDay);
-
-    closeModal();
   };
 
-  const handleCancel = (appointment) => {
+  const handleCancel = async (appointment) => {
     const confirmed = window.confirm(
       `¿Deseas cancelar la cita de ${appointment.pet}?`
     );
 
     if (!confirmed) return;
 
-    setAppointments((previous) =>
-      previous.map((item) =>
-        item.id === appointment.id
-          ? { ...item, status: "CANCELLED" }
-          : item
-      )
-    );
+    try {
+      await appointmentService.updateStatus(appointment.id, "CANCELLED");
+      await loadData();
+    } catch (err) {
+      alert(err.response?.data?.message || "Error al cancelar la cita.");
+    }
   };
 
-  const handleComplete = (appointment) => {
+  const handleComplete = async (appointment) => {
     const confirmed = window.confirm(
       `¿Marcar como completada la cita de ${appointment.pet}?`
     );
 
     if (!confirmed) return;
 
-    setAppointments((previous) =>
-      previous.map((item) =>
-        item.id === appointment.id
-          ? { ...item, status: "COMPLETED" }
-          : item
-      )
-    );
+    try {
+      await appointmentService.updateStatus(appointment.id, "COMPLETED");
+      await loadData();
+    } catch (err) {
+      alert(err.response?.data?.message || "Error al completar la cita.");
+    }
   };
 
   const modalTitle =
     modalMode === "create"
       ? "Nueva cita"
       : modalMode === "edit"
-        ? "Editar cita"
-        : "Detalles de la cita";
+      ? "Actualizar estado de la cita"
+      : "Detalles de la cita";
 
   const renderAppointmentActions = (appointment) => (
     <div className="appointment-actions">
@@ -372,7 +365,7 @@ function Appointments() {
 
       <button
         type="button"
-        title="Editar cita"
+        title="Cambiar estado"
         onClick={() => openEditModal(appointment)}
       >
         <Pencil size={16} />
@@ -416,10 +409,16 @@ function Appointments() {
           </div>
 
           <div className="appointments-user">
-            <div className="user-avatar">V</div>
+            <div className="user-avatar">
+              {(currentUser?.firstName || "V").charAt(0)}
+            </div>
             <div>
-              <strong>Personal veterinario</strong>
-              <span>Veterinario</span>
+              <strong>
+                {currentUser
+                  ? `${currentUser.firstName} ${currentUser.lastName}`
+                  : "Personal veterinario"}
+              </strong>
+              <span>{role}</span>
             </div>
           </div>
         </header>
@@ -427,13 +426,9 @@ function Appointments() {
         <div className="appointments-content">
           <section className="appointments-heading">
             <div>
-              <span className="appointments-subtitle">
-                GESTIÓN DE CITAS
-              </span>
+              <span className="appointments-subtitle">GESTIÓN DE CITAS</span>
               <h1>Agenda de citas</h1>
-              <p>
-                Consulta y administra las citas de tus pacientes.
-              </p>
+              <p>Consulta y administra las citas de tus pacientes.</p>
             </div>
 
             <button
@@ -483,8 +478,7 @@ function Appointments() {
               <div className="calendar-header">
                 <div>
                   <h2>
-                    {monthName.charAt(0).toUpperCase() +
-                      monthName.slice(1)}
+                    {monthName.charAt(0).toUpperCase() + monthName.slice(1)}
                   </h2>
                   <p>Selecciona un día para consultar sus citas.</p>
                 </div>
@@ -556,7 +550,9 @@ function Appointments() {
                       Citas del {selectedDay} de {monthName}
                     </h3>
                     <p>
-                      {selectedAppointments.length} citas encontradas
+                      {loading
+                        ? "Cargando citas..."
+                        : `${selectedAppointments.length} citas encontradas`}
                     </p>
                   </div>
 
@@ -591,8 +587,7 @@ function Appointments() {
                 <div>
                   <h2>Todas las citas</h2>
                   <p>
-                    Listado de {filteredAppointments.length} citas
-                    registradas.
+                    Listado de {filteredAppointments.length} citas registradas.
                   </p>
                 </div>
               </div>
@@ -605,7 +600,7 @@ function Appointments() {
                       <th>Hora</th>
                       <th>Mascota</th>
                       <th>Propietario</th>
-                      <th>Servicio</th>
+                      <th>Motivo</th>
                       <th>Veterinario</th>
                       <th>Estado</th>
                       <th>Acciones</th>
@@ -624,17 +619,13 @@ function Appointments() {
                         <td>{appointment.service}</td>
                         <td>{appointment.veterinarian}</td>
                         <td>
-                          <AppointmentStatus
-                            status={appointment.status}
-                          />
+                          <AppointmentStatus status={appointment.status} />
                         </td>
-                        <td>
-                          {renderAppointmentActions(appointment)}
-                        </td>
+                        <td>{renderAppointmentActions(appointment)}</td>
                       </tr>
                     ))}
 
-                    {filteredAppointments.length === 0 && (
+                    {!loading && filteredAppointments.length === 0 && (
                       <tr>
                         <td colSpan="8" className="empty-table">
                           No se encontraron citas.
@@ -656,6 +647,8 @@ function Appointments() {
         description={
           modalMode === "view"
             ? "Consulta la información de la cita seleccionada."
+            : modalMode === "edit"
+            ? "Actualiza el estado de la cita."
             : "Completa la información para programar la cita."
         }
         size="large"
@@ -674,10 +667,13 @@ function Appointments() {
                 type="submit"
                 form="appointment-form"
                 className="new-appointment-button"
+                disabled={saving}
               >
-                {modalMode === "create"
+                {saving
+                  ? "Guardando..."
+                  : modalMode === "create"
                   ? "Guardar cita"
-                  : "Guardar cambios"}
+                  : "Actualizar estado"}
               </button>
             )}
           </>
@@ -696,7 +692,7 @@ function Appointments() {
                 name="date"
                 value={formData.date}
                 onChange={handleInputChange}
-                disabled={modalMode === "view"}
+                disabled={modalMode !== "create"}
               />
             </div>
 
@@ -707,41 +703,47 @@ function Appointments() {
                 name="time"
                 value={formData.time}
                 onChange={handleInputChange}
-                disabled={modalMode === "view"}
+                disabled={modalMode !== "create"}
               />
             </div>
 
             <div className="appointment-form-field">
-              <label>Nombre de la mascota *</label>
-              <input
-                type="text"
-                name="pet"
-                value={formData.pet}
-                onChange={handleInputChange}
-                placeholder="Ej. Max"
-                disabled={modalMode === "view"}
-              />
+              <label>Mascota *</label>
+              {modalMode === "create" ? (
+                <select
+                  name="petId"
+                  value={formData.petId}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Selecciona una mascota</option>
+                  {petsList.map((pet) => (
+                    <option key={pet.id} value={pet.id}>
+                      {pet.name} ({pet.species} - {pet.owner})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input type="text" value={formData.pet} disabled />
+              )}
             </div>
 
             <div className="appointment-form-field">
-              <label>Propietario *</label>
+              <label>Propietario</label>
               <input
                 type="text"
-                name="owner"
                 value={formData.owner}
-                onChange={handleInputChange}
-                placeholder="Nombre del propietario"
-                disabled={modalMode === "view"}
+                placeholder="Se asigna al elegir mascota"
+                disabled
               />
             </div>
 
             <div className="appointment-form-field">
-              <label>Servicio *</label>
+              <label>Motivo / Servicio *</label>
               <select
                 name="service"
                 value={formData.service}
                 onChange={handleInputChange}
-                disabled={modalMode === "view"}
+                disabled={modalMode !== "create"}
               >
                 <option value="Consulta general">Consulta general</option>
                 <option value="Vacunación">Vacunación</option>
@@ -755,35 +757,41 @@ function Appointments() {
 
             <div className="appointment-form-field">
               <label>Veterinario *</label>
-              <select
-                name="veterinarian"
-                value={formData.veterinarian}
-                onChange={handleInputChange}
-                disabled={modalMode === "view"}
-              >
-                {veterinarians.map((veterinarian) => (
-                  <option key={veterinarian} value={veterinarian}>
-                    {veterinarian}
-                  </option>
-                ))}
-              </select>
+              {modalMode === "create" ? (
+                <select
+                  name="veterinarianId"
+                  value={formData.veterinarianId}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Selecciona un veterinario</option>
+                  {vetsList.map((vet) => (
+                    <option key={vet.id} value={vet.id}>
+                      {vet.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input type="text" value={formData.veterinarian} disabled />
+              )}
             </div>
 
-            <div className="appointment-form-field">
-              <label>Estado</label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-                disabled={modalMode === "view"}
-              >
-                <option value="PENDING">Pendiente</option>
-                <option value="CONFIRMED">Confirmada</option>
-                <option value="COMPLETED">Completada</option>
-                <option value="CANCELLED">Cancelada</option>
-                <option value="NO_SHOW">No asistió</option>
-              </select>
-            </div>
+            {modalMode !== "create" && (
+              <div className="appointment-form-field">
+                <label>Estado</label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleInputChange}
+                  disabled={modalMode === "view"}
+                >
+                  <option value="PENDING">Pendiente</option>
+                  <option value="CONFIRMED">Confirmada</option>
+                  <option value="COMPLETED">Completada</option>
+                  <option value="CANCELLED">Cancelada</option>
+                  <option value="NO_SHOW">No asistió</option>
+                </select>
+              </div>
+            )}
 
             <div className="appointment-form-field appointment-form-full">
               <label>Observaciones</label>
@@ -792,14 +800,12 @@ function Appointments() {
                 value={formData.notes}
                 onChange={handleInputChange}
                 placeholder="Información adicional sobre la cita..."
-                disabled={modalMode === "view"}
+                disabled={modalMode !== "create"}
               />
             </div>
           </div>
 
-          {formError && (
-            <p className="appointment-form-error">{formError}</p>
-          )}
+          {formError && <p className="appointment-form-error">{formError}</p>}
         </form>
       </Modal>
     </div>
@@ -809,7 +815,7 @@ function Appointments() {
 function AppointmentStatus({ status }) {
   return (
     <span className={`appointment-badge ${status.toLowerCase()}`}>
-      {statusLabels[status]}
+      {statusLabels[status] || status}
     </span>
   );
 }
@@ -847,4 +853,3 @@ function AppointmentCard({ appointment, actions }) {
 }
 
 export default Appointments;
-

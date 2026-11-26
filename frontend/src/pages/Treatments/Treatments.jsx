@@ -1,5 +1,4 @@
-
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -10,132 +9,72 @@ import {
   PawPrint,
   CalendarDays,
   Eye,
-  Pencil,
   Check,
 } from "lucide-react";
 
 import Sidebar from "../../components/layout/Sidebar";
 import Modal from "../../components/common/Modal";
+import { treatmentService } from "../../services/api/treatmentService";
+import { petService } from "../../services/api/petService";
+import { authService } from "../../services/api/authService";
 import "./Treatments.css";
 
-const demoTreatments = [
-  {
-    id: 1,
-    pet: "Max",
-    owner: "María González",
-    treatment: "Tratamiento dermatológico",
-    medication: "Antibiótico tópico",
-    veterinarian: "Dr. Alejandro Ruiz",
-    startDate: "18/11/2026",
-    endDate: "28/11/2026",
-    description: "Tratamiento para controlar una infección en la piel.",
-    instructions: "Aplicar dos veces al día.",
-    status: "En curso",
-  },
-  {
-    id: 2,
-    pet: "Luna",
-    owner: "Carlos Ramírez",
-    treatment: "Control de vacunación",
-    medication: "Vacuna triple felina",
-    veterinarian: "Dra. Laura Méndez",
-    startDate: "15/11/2026",
-    endDate: "15/11/2026",
-    description: "Aplicación de vacuna preventiva.",
-    instructions: "Mantener observación después de la aplicación.",
-    status: "Completado",
-  },
-  {
-    id: 3,
-    pet: "Rocky",
-    owner: "Ana Martínez",
-    treatment: "Tratamiento digestivo",
-    medication: "Protector gástrico",
-    veterinarian: "Dr. Alejandro Ruiz",
-    startDate: "20/11/2026",
-    endDate: "30/11/2026",
-    description: "Tratamiento para molestias digestivas.",
-    instructions: "Administrar según indicaciones veterinarias.",
-    status: "En curso",
-  },
-  {
-    id: 4,
-    pet: "Michi",
-    owner: "Luis Hernández",
-    treatment: "Control preventivo",
-    medication: "Antiparasitario",
-    veterinarian: "Dra. Laura Méndez",
-    startDate: "22/11/2026",
-    endDate: "22/11/2026",
-    description: "Aplicación de antiparasitario.",
-    instructions: "Revisar nuevamente en la próxima consulta.",
-    status: "Pendiente",
-  },
-  {
-    id: 5,
-    pet: "Coco",
-    owner: "Sofía Torres",
-    treatment: "Suplementación",
-    medication: "Suplemento vitamínico",
-    veterinarian: "Dr. Alejandro Ruiz",
-    startDate: "10/11/2026",
-    endDate: "20/11/2026",
-    description: "Suplementación para mejorar su estado nutricional.",
-    instructions: "Administrar una dosis diaria.",
-    status: "Completado",
-  },
-];
-
 const emptyForm = {
+  petId: "",
   pet: "",
   owner: "",
-  treatment: "",
+  treatmentId: "",
+  treatmentName: "",
   medication: "",
+  frequency: "",
+  duration: "",
   veterinarian: "",
   startDate: new Date().toLocaleDateString("en-CA"),
-  endDate: "",
   description: "",
   instructions: "",
-  status: "Pendiente",
+  status: "En curso",
 };
 
-const veterinarians = [
-  "Dr. Alejandro Ruiz",
-  "Dra. Laura Méndez",
-];
-
-function formatDateForInput(date) {
-  if (!date) return "";
-
-  if (date.includes("/")) {
-    const [day, month, year] = date.split("/");
-    return `${year}-${month}-${day}`;
-  }
-
-  return date;
-}
-
-function formatDateForDisplay(date) {
-  if (!date) return "Sin fecha";
-
-  if (date.includes("-")) {
-    const [year, month, day] = date.split("-");
-    return `${day}/${month}/${year}`;
-  }
-
-  return date;
-}
-
 function Treatments() {
-  const [treatments, setTreatments] = useState(demoTreatments);
+  const currentUser = authService.getCurrentUser();
+  const role = currentUser?.role || "VETERINARIAN";
+  const canCreate = role === "ADMIN" || role === "VETERINARIAN";
+
+  const [treatments, setTreatments] = useState([]);
+  const [catalog, setCatalog] = useState([]);
+  const [petsList, setPetsList] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create");
-  const [selectedTreatment, setSelectedTreatment] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
   const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [appliedData, catalogData, petsData] = await Promise.all([
+        treatmentService.getAllApplied(),
+        treatmentService.getCatalog(),
+        petService.getAll(),
+      ]);
+      setTreatments(appliedData);
+      setCatalog(catalogData);
+      setPetsList(petsData);
+    } catch (error) {
+      console.error("Error al cargar tratamientos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const filteredTreatments = useMemo(() => {
     return treatments.filter((treatment) => {
@@ -147,13 +86,10 @@ function Treatments() {
         treatment.treatment,
         treatment.medication,
         treatment.veterinarian,
-      ].some((value) =>
-        value.toLowerCase().includes(searchText)
-      );
+      ].some((value) => (value || "").toLowerCase().includes(searchText));
 
       const matchesStatus =
-        statusFilter === "Todos" ||
-        treatment.status === statusFilter;
+        statusFilter === "Todos" || treatment.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -167,16 +103,13 @@ function Treatments() {
     (item) => item.status === "Completado"
   ).length;
 
-  const pendingTreatments = treatments.filter(
-    (item) => item.status === "Pendiente"
-  ).length;
-
   const openCreateModal = () => {
     setModalMode("create");
-    setSelectedTreatment(null);
     setFormData({
       ...emptyForm,
-      startDate: new Date().toLocaleDateString("en-CA"),
+      veterinarian: currentUser
+        ? `${currentUser.firstName} ${currentUser.lastName}`
+        : "",
     });
     setFormError("");
     setIsModalOpen(true);
@@ -184,23 +117,10 @@ function Treatments() {
 
   const openViewModal = (treatment) => {
     setModalMode("view");
-    setSelectedTreatment(treatment);
     setFormData({
+      ...emptyForm,
       ...treatment,
-      startDate: formatDateForInput(treatment.startDate),
-      endDate: formatDateForInput(treatment.endDate),
-    });
-    setFormError("");
-    setIsModalOpen(true);
-  };
-
-  const openEditModal = (treatment) => {
-    setModalMode("edit");
-    setSelectedTreatment(treatment);
-    setFormData({
-      ...treatment,
-      startDate: formatDateForInput(treatment.startDate),
-      endDate: formatDateForInput(treatment.endDate),
+      treatmentName: treatment.treatment,
     });
     setFormError("");
     setIsModalOpen(true);
@@ -208,12 +128,33 @@ function Treatments() {
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setSelectedTreatment(null);
     setFormError("");
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === "petId") {
+      const petObj = petsList.find((p) => String(p.id) === String(value));
+      setFormData((prev) => ({
+        ...prev,
+        petId: value,
+        pet: petObj ? petObj.name : "",
+        owner: petObj ? petObj.owner : "",
+      }));
+      return;
+    }
+
+    if (name === "treatmentId") {
+      const catObj = catalog.find((c) => String(c.id) === String(value));
+      setFormData((prev) => ({
+        ...prev,
+        treatmentId: value,
+        treatmentName: catObj ? catObj.name : "",
+        description: catObj?.description || prev.description,
+      }));
+      return;
+    }
 
     setFormData((previous) => ({
       ...previous,
@@ -221,60 +162,28 @@ function Treatments() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError("");
 
-    if (
-      !formData.pet.trim() ||
-      !formData.owner.trim() ||
-      !formData.treatment.trim() ||
-      !formData.medication.trim() ||
-      !formData.veterinarian ||
-      !formData.startDate
-    ) {
-      setFormError("Completa todos los campos obligatorios.");
+    if (!formData.petId || !formData.treatmentId) {
+      setFormError("Selecciona la mascota y el tratamiento del catálogo.");
       return;
     }
 
-    if (
-      formData.endDate &&
-      formData.endDate < formData.startDate
-    ) {
+    try {
+      setSaving(true);
+      await treatmentService.assignTreatment(formData);
+      await loadData();
+      closeModal();
+    } catch (err) {
       setFormError(
-        "La fecha de finalización no puede ser anterior a la fecha de inicio."
+        err.response?.data?.message ||
+          "Error al asignar tratamiento (requiere rol VETERINARIAN o ADMIN)."
       );
-      return;
+    } finally {
+      setSaving(false);
     }
-
-    const treatmentData = {
-      ...formData,
-      startDate: formatDateForDisplay(formData.startDate),
-      endDate: formatDateForDisplay(formData.endDate),
-    };
-
-    if (modalMode === "create") {
-      const newTreatment = {
-        id: Date.now(),
-        ...treatmentData,
-      };
-
-      setTreatments((previous) => [
-        newTreatment,
-        ...previous,
-      ]);
-    }
-
-    if (modalMode === "edit" && selectedTreatment) {
-      setTreatments((previous) =>
-        previous.map((item) =>
-          item.id === selectedTreatment.id
-            ? { ...item, ...treatmentData }
-            : item
-        )
-      );
-    }
-
-    closeModal();
   };
 
   const handleComplete = (treatment) => {
@@ -295,16 +204,9 @@ function Treatments() {
     );
   };
 
-  const modalTitle =
-    modalMode === "create"
-      ? "Nuevo tratamiento"
-      : modalMode === "edit"
-        ? "Editar tratamiento"
-        : "Detalles del tratamiento";
-
   return (
     <div className="treatments-layout">
-      <Sidebar role="VETERINARIAN" />
+      <Sidebar role={role} />
 
       <main className="treatments-main">
         <header className="treatments-header">
@@ -313,18 +215,18 @@ function Treatments() {
               Gestión / Tratamientos
             </span>
             <h1>Tratamientos</h1>
-            <p>
-              Administra y supervisa los tratamientos de las mascotas.
-            </p>
+            <p>Administra y supervisa los tratamientos de las mascotas.</p>
           </div>
 
-          <button
-            className="treatments-primary-btn"
-            onClick={openCreateModal}
-          >
-            <Plus size={18} />
-            Nuevo tratamiento
-          </button>
+          {canCreate && (
+            <button
+              className="treatments-primary-btn"
+              onClick={openCreateModal}
+            >
+              <Plus size={18} />
+              Asignar tratamiento
+            </button>
+          )}
         </header>
 
         <section className="treatments-stats">
@@ -333,7 +235,7 @@ function Treatments() {
               <Pill size={22} />
             </div>
             <div>
-              <span>Total de tratamientos</span>
+              <span>Tratamientos aplicados</span>
               <h2>{treatments.length}</h2>
             </div>
           </div>
@@ -363,8 +265,8 @@ function Treatments() {
               <Clock size={22} />
             </div>
             <div>
-              <span>Pendientes</span>
-              <h2>{pendingTreatments}</h2>
+              <span>Catálogo disponible</span>
+              <h2>{catalog.length}</h2>
             </div>
           </div>
         </section>
@@ -375,7 +277,7 @@ function Treatments() {
               <Search size={19} />
               <input
                 type="text"
-                placeholder="Buscar mascota, tratamiento o medicamento..."
+                placeholder="Buscar mascota, tratamiento o dosis..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -388,7 +290,6 @@ function Treatments() {
               <option value="Todos">Todos los estados</option>
               <option value="En curso">En curso</option>
               <option value="Completado">Completados</option>
-              <option value="Pendiente">Pendientes</option>
             </select>
           </div>
 
@@ -396,7 +297,9 @@ function Treatments() {
             <div>
               <h2>Registro de tratamientos</h2>
               <p>
-                {filteredTreatments.length} tratamientos encontrados
+                {loading
+                  ? "Cargando tratamientos..."
+                  : `${filteredTreatments.length} tratamientos encontrados`}
               </p>
             </div>
           </div>
@@ -407,10 +310,10 @@ function Treatments() {
                 <tr>
                   <th>Mascota</th>
                   <th>Tratamiento</th>
-                  <th>Medicamento</th>
+                  <th>Dosis / Indicaciones</th>
                   <th>Veterinario</th>
-                  <th>Inicio</th>
-                  <th>Finalización</th>
+                  <th>Fecha</th>
+                  <th>Duración</th>
                   <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
@@ -432,9 +335,7 @@ function Treatments() {
                     </td>
 
                     <td>
-                      <span className="treatment-name">
-                        {item.treatment}
-                      </span>
+                      <span className="treatment-name">{item.treatment}</span>
                     </td>
 
                     <td>{item.medication}</td>
@@ -450,7 +351,7 @@ function Treatments() {
                     <td>
                       <span className="treatment-date">
                         <CalendarDays size={14} />
-                        {item.endDate || "Sin fecha"}
+                        {item.endDate}
                       </span>
                     </td>
 
@@ -459,9 +360,7 @@ function Treatments() {
                         className={`treatment-status ${
                           item.status === "En curso"
                             ? "ongoing"
-                            : item.status === "Completado"
-                              ? "completed"
-                              : "pending"
+                            : "completed"
                         }`}
                       >
                         {item.status}
@@ -475,13 +374,6 @@ function Treatments() {
                           onClick={() => openViewModal(item)}
                         >
                           <Eye size={17} />
-                        </button>
-
-                        <button
-                          title="Editar tratamiento"
-                          onClick={() => openEditModal(item)}
-                        >
-                          <Pencil size={17} />
                         </button>
 
                         {item.status !== "Completado" && (
@@ -498,10 +390,10 @@ function Treatments() {
                   </tr>
                 ))}
 
-                {filteredTreatments.length === 0 && (
+                {!loading && filteredTreatments.length === 0 && (
                   <tr>
                     <td colSpan="8" className="treatments-empty">
-                      No se encontraron tratamientos.
+                      No se encontraron tratamientos aplicados.
                     </td>
                   </tr>
                 )}
@@ -514,11 +406,15 @@ function Treatments() {
       <Modal
         isOpen={isModalOpen}
         onClose={closeModal}
-        title={modalTitle}
+        title={
+          modalMode === "create"
+            ? "Asignar tratamiento"
+            : "Detalles del tratamiento"
+        }
         description={
           modalMode === "view"
             ? "Consulta la información del tratamiento seleccionado."
-            : "Ingresa la información correspondiente al tratamiento."
+            : "Asigna un tratamiento del catálogo a una mascota."
         }
         size="large"
         footer={
@@ -536,128 +432,109 @@ function Treatments() {
                 type="submit"
                 form="treatment-form"
                 className="treatments-primary-btn"
+                disabled={saving}
               >
-                {modalMode === "create"
-                  ? "Guardar tratamiento"
-                  : "Guardar cambios"}
+                {saving ? "Guardando..." : "Guardar tratamiento"}
               </button>
             )}
           </>
         }
       >
-        <form
-          id="treatment-form"
-          onSubmit={handleSubmit}
-        >
+        <form id="treatment-form" onSubmit={handleSubmit}>
           <div className="treatment-form-grid">
             <div className="treatment-form-field">
               <label>Mascota *</label>
-              <input
-                type="text"
-                name="pet"
-                value={formData.pet}
-                onChange={handleInputChange}
-                placeholder="Nombre de la mascota"
-                disabled={modalMode === "view"}
-              />
+              {modalMode === "create" ? (
+                <select
+                  name="petId"
+                  value={formData.petId}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Selecciona una mascota</option>
+                  {petsList.map((pet) => (
+                    <option key={pet.id} value={pet.id}>
+                      {pet.name} ({pet.species} - {pet.owner})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input type="text" value={formData.pet} disabled />
+              )}
             </div>
 
             <div className="treatment-form-field">
-              <label>Propietario *</label>
+              <label>Propietario</label>
               <input
                 type="text"
-                name="owner"
                 value={formData.owner}
-                onChange={handleInputChange}
-                placeholder="Nombre del propietario"
-                disabled={modalMode === "view"}
+                placeholder="Se completa al elegir mascota"
+                disabled
               />
             </div>
 
             <div className="treatment-form-field">
-              <label>Nombre del tratamiento *</label>
-              <input
-                type="text"
-                name="treatment"
-                value={formData.treatment}
-                onChange={handleInputChange}
-                placeholder="Ej. Tratamiento dermatológico"
-                disabled={modalMode === "view"}
-              />
+              <label>Tratamiento del catálogo *</label>
+              {modalMode === "create" ? (
+                <select
+                  name="treatmentId"
+                  value={formData.treatmentId}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Seleccionar tratamiento</option>
+                  {catalog.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input type="text" value={formData.treatmentName} disabled />
+              )}
             </div>
 
             <div className="treatment-form-field">
-              <label>Medicamento *</label>
+              <label>Dosis / Medicamento</label>
               <input
                 type="text"
                 name="medication"
                 value={formData.medication}
                 onChange={handleInputChange}
-                placeholder="Medicamento o producto"
+                placeholder="Ej. 1 tableta / 5 ml"
                 disabled={modalMode === "view"}
               />
             </div>
 
             <div className="treatment-form-field">
-              <label>Veterinario responsable *</label>
-              <select
-                name="veterinarian"
-                value={formData.veterinarian}
-                onChange={handleInputChange}
-                disabled={modalMode === "view"}
-              >
-                <option value="">Seleccionar veterinario</option>
-                {veterinarians.map((veterinarian) => (
-                  <option key={veterinarian} value={veterinarian}>
-                    {veterinarian}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="treatment-form-field">
-              <label>Estado</label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-                disabled={modalMode === "view"}
-              >
-                <option value="Pendiente">Pendiente</option>
-                <option value="En curso">En curso</option>
-                <option value="Completado">Completado</option>
-              </select>
-            </div>
-
-            <div className="treatment-form-field">
-              <label>Fecha de inicio *</label>
+              <label>Frecuencia</label>
               <input
-                type="date"
-                name="startDate"
-                value={formData.startDate}
+                type="text"
+                name="frequency"
+                value={formData.frequency}
                 onChange={handleInputChange}
+                placeholder="Ej. Cada 12 horas"
                 disabled={modalMode === "view"}
               />
             </div>
 
             <div className="treatment-form-field">
-              <label>Fecha de finalización</label>
+              <label>Duración</label>
               <input
-                type="date"
-                name="endDate"
-                value={formData.endDate}
+                type="text"
+                name="duration"
+                value={formData.duration}
                 onChange={handleInputChange}
+                placeholder="Ej. 7 días"
                 disabled={modalMode === "view"}
               />
             </div>
 
             <div className="treatment-form-field treatment-form-full">
-              <label>Descripción del tratamiento</label>
+              <label>Diagnóstico / Motivo</label>
               <textarea
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
-                placeholder="Describe el objetivo del tratamiento..."
+                placeholder="Motivo clínico del tratamiento..."
                 disabled={modalMode === "view"}
               />
             </div>
@@ -674,11 +551,7 @@ function Treatments() {
             </div>
           </div>
 
-          {formError && (
-            <p className="treatment-form-error">
-              {formError}
-            </p>
-          )}
+          {formError && <p className="treatment-form-error">{formError}</p>}
         </form>
       </Modal>
     </div>

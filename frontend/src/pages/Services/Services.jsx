@@ -1,5 +1,4 @@
-
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -9,83 +8,20 @@ import {
   HeartPulse,
   Clock,
   Eye,
-  Pencil,
   Activity,
-  Power,
 } from "lucide-react";
 
 import Sidebar from "../../components/layout/Sidebar";
 import Modal from "../../components/common/Modal";
+import { serviceCatalogService } from "../../services/api/serviceCatalogService";
+import { authService } from "../../services/api/authService";
 import "./Services.css";
-
-const demoServices = [
-  {
-    id: 1,
-    name: "Consulta general",
-    category: "Consulta",
-    description: "Evaluación general del estado de salud de la mascota.",
-    duration: 30,
-    price: 350,
-    status: "Activo",
-    icon: "stethoscope",
-  },
-  {
-    id: 2,
-    name: "Vacunación",
-    category: "Prevención",
-    description: "Aplicación de vacunas según el esquema correspondiente.",
-    duration: 20,
-    price: 250,
-    status: "Activo",
-    icon: "syringe",
-  },
-  {
-    id: 3,
-    name: "Desparasitación",
-    category: "Prevención",
-    description: "Tratamiento preventivo contra parásitos internos y externos.",
-    duration: 20,
-    price: 180,
-    status: "Activo",
-    icon: "heart",
-  },
-  {
-    id: 4,
-    name: "Estética canina",
-    category: "Estética",
-    description: "Baño, cepillado y arreglo general de la mascota.",
-    duration: 60,
-    price: 450,
-    status: "Activo",
-    icon: "scissors",
-  },
-  {
-    id: 5,
-    name: "Curaciones",
-    category: "Tratamiento",
-    description: "Limpieza y atención de heridas superficiales.",
-    duration: 30,
-    price: 280,
-    status: "Activo",
-    icon: "activity",
-  },
-  {
-    id: 6,
-    name: "Cirugía general",
-    category: "Cirugía",
-    description: "Procedimientos quirúrgicos programados.",
-    duration: 120,
-    price: 2500,
-    status: "Inactivo",
-    icon: "stethoscope",
-  },
-];
 
 const emptyForm = {
   name: "",
   category: "Consulta",
   description: "",
-  duration: "",
+  duration: "30",
   price: "",
   status: "Activo",
   icon: "stethoscope",
@@ -104,16 +40,38 @@ function ServiceIcon({ type }) {
 }
 
 function Services() {
-  const [services, setServices] = useState(demoServices);
+  const currentUser = authService.getCurrentUser();
+  const role = currentUser?.role || "VETERINARIAN";
+  const isAdmin = role === "ADMIN";
+
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Todas");
   const [statusFilter, setStatusFilter] = useState("Todos");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create");
-  const [selectedService, setSelectedService] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
   const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const loadServices = async () => {
+    try {
+      setLoading(true);
+      const data = await serviceCatalogService.getAll();
+      setServices(data);
+    } catch (error) {
+      console.error("Error al cargar servicios:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadServices();
+  }, []);
 
   const filteredServices = useMemo(() => {
     return services.filter((service) => {
@@ -123,17 +81,13 @@ function Services() {
         service.name,
         service.category,
         service.description,
-      ].some((value) =>
-        value.toLowerCase().includes(searchText)
-      );
+      ].some((value) => (value || "").toLowerCase().includes(searchText));
 
       const matchesCategory =
-        categoryFilter === "Todas" ||
-        service.category === categoryFilter;
+        categoryFilter === "Todas" || service.category === categoryFilter;
 
       const matchesStatus =
-        statusFilter === "Todos" ||
-        service.status === statusFilter;
+        statusFilter === "Todos" || service.status === statusFilter;
 
       return matchesSearch && matchesCategory && matchesStatus;
     });
@@ -153,7 +107,6 @@ function Services() {
 
   const openCreateModal = () => {
     setModalMode("create");
-    setSelectedService(null);
     setFormData(emptyForm);
     setFormError("");
     setIsModalOpen(true);
@@ -161,19 +114,6 @@ function Services() {
 
   const openViewModal = (service) => {
     setModalMode("view");
-    setSelectedService(service);
-    setFormData({
-      ...service,
-      duration: String(service.duration),
-      price: String(service.price),
-    });
-    setFormError("");
-    setIsModalOpen(true);
-  };
-
-  const openEditModal = (service) => {
-    setModalMode("edit");
-    setSelectedService(service);
     setFormData({
       ...service,
       duration: String(service.duration),
@@ -185,7 +125,6 @@ function Services() {
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setSelectedService(null);
     setFormError("");
   };
 
@@ -198,12 +137,12 @@ function Services() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError("");
 
     if (
       !formData.name.trim() ||
-      !formData.category ||
       !formData.description.trim() ||
       !formData.duration ||
       !formData.price
@@ -215,101 +154,48 @@ function Services() {
     const duration = Number(formData.duration);
     const price = Number(formData.price);
 
-    if (
-      !Number.isFinite(duration) ||
-      !Number.isInteger(duration) ||
-      duration <= 0 ||
-      !Number.isFinite(price) ||
-      price <= 0
-    ) {
+    if (!Number.isInteger(duration) || duration < 5 || price < 0) {
       setFormError(
-        "La duración y el precio deben ser números mayores que cero."
+        "La duración mínima es de 5 minutos y el precio no puede ser negativo."
       );
       return;
     }
 
-    const serviceData = {
-      ...formData,
-      name: formData.name.trim(),
-      description: formData.description.trim(),
-      duration,
-      price,
-    };
-
-    if (modalMode === "create") {
-      const newService = {
-        id: Date.now(),
-        ...serviceData,
-      };
-
-      setServices((previous) => [
-        newService,
-        ...previous,
-      ]);
-    }
-
-    if (modalMode === "edit" && selectedService) {
-      setServices((previous) =>
-        previous.map((service) =>
-          service.id === selectedService.id
-            ? { ...service, ...serviceData }
-            : service
-        )
+    try {
+      setSaving(true);
+      await serviceCatalogService.create(formData);
+      await loadServices();
+      closeModal();
+    } catch (err) {
+      setFormError(
+        err.response?.data?.message ||
+          "Error al guardar servicio (solo ADMIN puede crear servicios)."
       );
+    } finally {
+      setSaving(false);
     }
-
-    closeModal();
   };
-
-  const toggleServiceStatus = (service) => {
-    const newStatus =
-      service.status === "Activo" ? "Inactivo" : "Activo";
-
-    const confirmed = window.confirm(
-      `¿Deseas ${newStatus === "Activo" ? "activar" : "desactivar"} el servicio "${service.name}"?`
-    );
-
-    if (!confirmed) return;
-
-    setServices((previous) =>
-      previous.map((item) =>
-        item.id === service.id
-          ? { ...item, status: newStatus }
-          : item
-      )
-    );
-  };
-
-  const modalTitle =
-    modalMode === "create"
-      ? "Nuevo servicio"
-      : modalMode === "edit"
-        ? "Editar servicio"
-        : "Detalles del servicio";
 
   return (
     <div className="services-layout">
-      <Sidebar role="VETERINARIAN" />
+      <Sidebar role={role} />
 
       <main className="services-main">
         <header className="services-header">
           <div>
-            <span className="services-breadcrumb">
-              Gestión / Servicios
-            </span>
+            <span className="services-breadcrumb">Gestión / Servicios</span>
             <h1>Servicios</h1>
             <p>
               Administra los servicios y tarifas de la clínica veterinaria.
             </p>
           </div>
 
-          <button
-            className="services-primary-btn"
-            onClick={openCreateModal}
-          >
-            <Plus size={18} />
-            Nuevo servicio
-          </button>
+          {isAdmin && (
+            <button className="services-primary-btn" onClick={openCreateModal}>
+              <Plus size={18} />
+              Nuevo servicio
+            </button>
+          )}
         </header>
 
         <section className="services-stats">
@@ -371,6 +257,7 @@ function Services() {
               onChange={(e) => setCategoryFilter(e.target.value)}
             >
               <option value="Todas">Todas las categorías</option>
+              <option value="Clínica">Clínica</option>
               <option value="Consulta">Consulta</option>
               <option value="Prevención">Prevención</option>
               <option value="Estética">Estética</option>
@@ -392,7 +279,9 @@ function Services() {
             <div>
               <h2>Catálogo de servicios</h2>
               <p>
-                {filteredServices.length} servicios encontrados
+                {loading
+                  ? "Cargando servicios..."
+                  : `${filteredServices.length} servicios encontrados`}
               </p>
             </div>
           </div>
@@ -449,9 +338,7 @@ function Services() {
                     <td>
                       <span
                         className={`service-status ${
-                          service.status === "Activo"
-                            ? "active"
-                            : "inactive"
+                          service.status === "Activo" ? "active" : "inactive"
                         }`}
                       >
                         {service.status}
@@ -466,31 +353,12 @@ function Services() {
                         >
                           <Eye size={17} />
                         </button>
-
-                        <button
-                          title="Editar servicio"
-                          onClick={() => openEditModal(service)}
-                        >
-                          <Pencil size={17} />
-                        </button>
-
-                        <button
-                          className="service-toggle-btn"
-                          title={
-                            service.status === "Activo"
-                              ? "Desactivar servicio"
-                              : "Activar servicio"
-                          }
-                          onClick={() => toggleServiceStatus(service)}
-                        >
-                          <Power size={17} />
-                        </button>
                       </div>
                     </td>
                   </tr>
                 ))}
 
-                {filteredServices.length === 0 && (
+                {!loading && filteredServices.length === 0 && (
                   <tr>
                     <td colSpan="7" className="services-empty">
                       No se encontraron servicios.
@@ -506,7 +374,11 @@ function Services() {
       <Modal
         isOpen={isModalOpen}
         onClose={closeModal}
-        title={modalTitle}
+        title={
+          modalMode === "create"
+            ? "Nuevo servicio"
+            : "Detalles del servicio"
+        }
         description={
           modalMode === "view"
             ? "Consulta la información del servicio seleccionado."
@@ -528,19 +400,15 @@ function Services() {
                 type="submit"
                 form="service-form"
                 className="services-primary-btn"
+                disabled={saving}
               >
-                {modalMode === "create"
-                  ? "Guardar servicio"
-                  : "Guardar cambios"}
+                {saving ? "Guardando..." : "Guardar servicio"}
               </button>
             )}
           </>
         }
       >
-        <form
-          id="service-form"
-          onSubmit={handleSubmit}
-        >
+        <form id="service-form" onSubmit={handleSubmit}>
           <div className="service-form-grid">
             <div className="service-form-field">
               <label>Nombre del servicio *</label>
@@ -555,27 +423,11 @@ function Services() {
             </div>
 
             <div className="service-form-field">
-              <label>Categoría *</label>
-              <select
-                name="category"
-                value={formData.category}
-                onChange={handleInputChange}
-                disabled={modalMode === "view"}
-              >
-                <option value="Consulta">Consulta</option>
-                <option value="Prevención">Prevención</option>
-                <option value="Estética">Estética</option>
-                <option value="Tratamiento">Tratamiento</option>
-                <option value="Cirugía">Cirugía</option>
-              </select>
-            </div>
-
-            <div className="service-form-field">
-              <label>Duración (minutos) *</label>
+              <label>Duración (minutos, mín. 5) *</label>
               <input
                 type="number"
                 name="duration"
-                min="1"
+                min="5"
                 step="1"
                 value={formData.duration}
                 onChange={handleInputChange}
@@ -589,29 +441,13 @@ function Services() {
               <input
                 type="number"
                 name="price"
-                min="0.01"
+                min="0"
                 step="0.01"
                 value={formData.price}
                 onChange={handleInputChange}
                 placeholder="Ej. 350"
                 disabled={modalMode === "view"}
               />
-            </div>
-
-            <div className="service-form-field">
-              <label>Icono del servicio</label>
-              <select
-                name="icon"
-                value={formData.icon}
-                onChange={handleInputChange}
-                disabled={modalMode === "view"}
-              >
-                <option value="stethoscope">Estetoscopio</option>
-                <option value="syringe">Jeringa</option>
-                <option value="scissors">Tijeras</option>
-                <option value="heart">Corazón</option>
-                <option value="activity">Actividad</option>
-              </select>
             </div>
 
             <div className="service-form-field">
@@ -639,11 +475,7 @@ function Services() {
             </div>
           </div>
 
-          {formError && (
-            <p className="service-form-error">
-              {formError}
-            </p>
-          )}
+          {formError && <p className="service-form-error">{formError}</p>}
         </form>
       </Modal>
     </div>

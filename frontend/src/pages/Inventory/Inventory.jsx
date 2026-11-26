@@ -1,5 +1,4 @@
-
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -8,95 +7,23 @@ import {
   AlertTriangle,
   XCircle,
   Eye,
-  Pencil,
   Filter,
-  Trash2,
-  ArrowDownUp,
 } from "lucide-react";
 
 import Sidebar from "../../components/layout/Sidebar";
 import Modal from "../../components/common/Modal";
+import { inventoryService } from "../../services/api/inventoryService";
+import { authService } from "../../services/api/authService";
 import "./Inventory.css";
-
-const demoProducts = [
-  {
-    id: 1,
-    name: "Vacuna antirrábica",
-    category: "Medicamentos",
-    code: "MED-001",
-    quantity: 24,
-    minimumStock: 10,
-    price: 180,
-  },
-  {
-    id: 2,
-    name: "Antiparasitario canino",
-    category: "Medicamentos",
-    code: "MED-002",
-    quantity: 6,
-    minimumStock: 10,
-    price: 95,
-  },
-  {
-    id: 3,
-    name: "Gasas estériles",
-    category: "Material médico",
-    code: "MAT-001",
-    quantity: 120,
-    minimumStock: 30,
-    price: 5,
-  },
-  {
-    id: 4,
-    name: "Guantes desechables",
-    category: "Material médico",
-    code: "MAT-002",
-    quantity: 0,
-    minimumStock: 20,
-    price: 2.5,
-  },
-  {
-    id: 5,
-    name: "Shampoo veterinario",
-    category: "Higiene",
-    code: "HIG-001",
-    quantity: 18,
-    minimumStock: 8,
-    price: 110,
-  },
-  {
-    id: 6,
-    name: "Solución antiséptica",
-    category: "Material médico",
-    code: "MAT-003",
-    quantity: 4,
-    minimumStock: 10,
-    price: 65,
-  },
-  {
-    id: 7,
-    name: "Alimento para perro",
-    category: "Alimentos",
-    code: "ALI-001",
-    quantity: 35,
-    minimumStock: 10,
-    price: 320,
-  },
-];
 
 const emptyForm = {
   name: "",
-  category: "Medicamentos",
-  code: "",
+  category: "pieza",
+  description: "",
   quantity: "",
-  minimumStock: "",
+  minimumStock: "5",
   price: "",
-};
-
-const emptyStockForm = {
-  operation: "Entrada",
-  quantity: "",
-  reason: "",
+  expirationDate: "",
 };
 
 function getStockStatus(product) {
@@ -112,17 +39,38 @@ function getStockStatus(product) {
 }
 
 function Inventory() {
-  const [products, setProducts] = useState(demoProducts);
+  const currentUser = authService.getCurrentUser();
+  const role = currentUser?.role || "VETERINARIAN";
+  const canCreate = role === "ADMIN" || role === "VETERINARIAN";
+
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Todas");
   const [statusFilter, setStatusFilter] = useState("Todos");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create");
-  const [selectedProduct, setSelectedProduct] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
-  const [stockForm, setStockForm] = useState(emptyStockForm);
   const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const loadInventory = async () => {
+    try {
+      setLoading(true);
+      const data = await inventoryService.getAll();
+      setProducts(data);
+    } catch (error) {
+      console.error("Error al cargar inventario:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadInventory();
+  }, []);
 
   const totalProducts = products.length;
 
@@ -133,13 +81,16 @@ function Inventory() {
 
   const lowStock = products.filter(
     (product) =>
-      product.quantity > 0 &&
-      product.quantity <= product.minimumStock
+      product.quantity > 0 && product.quantity <= product.minimumStock
   ).length;
 
   const outOfStock = products.filter(
     (product) => product.quantity === 0
   ).length;
+
+  const uniqueUnits = useMemo(() => {
+    return Array.from(new Set(products.map((p) => p.category)));
+  }, [products]);
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
@@ -148,15 +99,13 @@ function Inventory() {
       const matchesSearch =
         product.name.toLowerCase().includes(searchText) ||
         product.code.toLowerCase().includes(searchText) ||
-        product.category.toLowerCase().includes(searchText);
+        (product.description || "").toLowerCase().includes(searchText);
 
       const matchesCategory =
-        categoryFilter === "Todas" ||
-        product.category === categoryFilter;
+        categoryFilter === "Todas" || product.category === categoryFilter;
 
       const matchesStatus =
-        statusFilter === "Todos" ||
-        getStockStatus(product) === statusFilter;
+        statusFilter === "Todos" || getStockStatus(product) === statusFilter;
 
       return matchesSearch && matchesCategory && matchesStatus;
     });
@@ -164,7 +113,6 @@ function Inventory() {
 
   const openCreateModal = () => {
     setModalMode("create");
-    setSelectedProduct(null);
     setFormData(emptyForm);
     setFormError("");
     setIsModalOpen(true);
@@ -172,45 +120,21 @@ function Inventory() {
 
   const openViewModal = (product) => {
     setModalMode("view");
-    setSelectedProduct(product);
     setFormData({
       name: product.name,
       category: product.category,
-      code: product.code,
+      description: product.description || "",
       quantity: String(product.quantity),
       minimumStock: String(product.minimumStock),
       price: String(product.price),
+      expirationDate: product.expirationDate || "",
     });
-    setFormError("");
-    setIsModalOpen(true);
-  };
-
-  const openEditModal = (product) => {
-    setModalMode("edit");
-    setSelectedProduct(product);
-    setFormData({
-      name: product.name,
-      category: product.category,
-      code: product.code,
-      quantity: String(product.quantity),
-      minimumStock: String(product.minimumStock),
-      price: String(product.price),
-    });
-    setFormError("");
-    setIsModalOpen(true);
-  };
-
-  const openStockModal = (product) => {
-    setModalMode("stock");
-    setSelectedProduct(product);
-    setStockForm(emptyStockForm);
     setFormError("");
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setSelectedProduct(null);
     setFormError("");
   };
 
@@ -223,22 +147,12 @@ function Inventory() {
     }));
   };
 
-  const handleStockInputChange = (e) => {
-    const { name, value } = e.target;
-
-    setStockForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError("");
 
     if (
       !formData.name.trim() ||
-      !formData.category ||
-      !formData.code.trim() ||
       formData.quantity === "" ||
       formData.minimumStock === "" ||
       formData.price === ""
@@ -257,129 +171,32 @@ function Inventory() {
       !Number.isInteger(minimumStock) ||
       minimumStock < 0 ||
       !Number.isFinite(price) ||
-      price <= 0
+      price < 0
     ) {
       setFormError(
-        "Las existencias y el stock mínimo deben ser números enteros iguales o mayores que cero. El precio debe ser mayor que cero."
+        "Las existencias y el stock mínimo deben ser enteros >= 0 y el precio >= 0."
       );
       return;
     }
 
-    const normalizedCode = formData.code.trim().toUpperCase();
-
-    const duplicateCode = products.some(
-      (product) =>
-        product.code.toUpperCase() === normalizedCode &&
-        product.id !== selectedProduct?.id
-    );
-
-    if (duplicateCode) {
-      setFormError("Ya existe un producto registrado con ese código.");
-      return;
-    }
-
-    const productData = {
-      name: formData.name.trim(),
-      category: formData.category,
-      code: normalizedCode,
-      quantity,
-      minimumStock,
-      price,
-    };
-
-    if (modalMode === "create") {
-      setProducts((previous) => [
-        {
-          id: Date.now(),
-          ...productData,
-        },
-        ...previous,
-      ]);
-    }
-
-    if (modalMode === "edit" && selectedProduct) {
-      setProducts((previous) =>
-        previous.map((product) =>
-          product.id === selectedProduct.id
-            ? { ...product, ...productData }
-            : product
-        )
-      );
-    }
-
-    closeModal();
-  };
-
-  const handleStockSubmit = (e) => {
-    e.preventDefault();
-
-    const amount = Number(stockForm.quantity);
-
-    if (
-      !Number.isInteger(amount) ||
-      amount <= 0
-    ) {
-      setFormError("Ingresa una cantidad entera mayor que cero.");
-      return;
-    }
-
-    if (!selectedProduct) return;
-
-    if (
-      stockForm.operation === "Salida" &&
-      amount > selectedProduct.quantity
-    ) {
+    try {
+      setSaving(true);
+      await inventoryService.create(formData);
+      await loadInventory();
+      closeModal();
+    } catch (err) {
       setFormError(
-        `No hay suficientes existencias. Disponibles: ${selectedProduct.quantity}.`
+        err.response?.data?.message ||
+          "Error al registrar producto en inventario."
       );
-      return;
+    } finally {
+      setSaving(false);
     }
-
-    setProducts((previous) =>
-      previous.map((product) => {
-        if (product.id !== selectedProduct.id) {
-          return product;
-        }
-
-        const newQuantity =
-          stockForm.operation === "Entrada"
-            ? product.quantity + amount
-            : product.quantity - amount;
-
-        return {
-          ...product,
-          quantity: newQuantity,
-        };
-      })
-    );
-
-    closeModal();
   };
-
-  const handleDelete = (product) => {
-    const confirmed = window.confirm(
-      `¿Estás seguro de eliminar "${product.name}" del inventario?`
-    );
-
-    if (!confirmed) return;
-
-    setProducts((previous) =>
-      previous.filter((item) => item.id !== product.id)
-    );
-  };
-
-  const modalTitle =
-    modalMode === "create"
-      ? "Nuevo producto"
-      : modalMode === "edit"
-        ? "Editar producto"
-        : modalMode === "stock"
-          ? "Ajustar existencias"
-          : "Detalles del producto";
 
   return (
     <div className="inventory-layout">
-      <Sidebar role="VETERINARIAN" />
+      <Sidebar role={role} />
 
       <main className="inventory-main">
         <header className="inventory-header">
@@ -391,13 +208,15 @@ function Inventory() {
             <p>Controla los productos y existencias de tu clínica.</p>
           </div>
 
-          <button
-            className="inventory-primary-button"
-            onClick={openCreateModal}
-          >
-            <Plus size={18} />
-            Nuevo producto
-          </button>
+          {canCreate && (
+            <button
+              className="inventory-primary-button"
+              onClick={openCreateModal}
+            >
+              <Plus size={18} />
+              Nuevo producto
+            </button>
+          )}
         </header>
 
         <section className="inventory-stats">
@@ -446,7 +265,11 @@ function Inventory() {
           <div className="inventory-content-header">
             <div>
               <h2>Productos registrados</h2>
-              <p>Consulta las existencias de los productos.</p>
+              <p>
+                {loading
+                  ? "Cargando inventario..."
+                  : "Consulta las existencias de los productos."}
+              </p>
             </div>
           </div>
 
@@ -455,7 +278,7 @@ function Inventory() {
               <Search size={18} />
               <input
                 type="text"
-                placeholder="Buscar producto o código..."
+                placeholder="Buscar producto, código o descripción..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -467,11 +290,12 @@ function Inventory() {
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
               >
-                <option value="Todas">Todas las categorías</option>
-                <option value="Medicamentos">Medicamentos</option>
-                <option value="Material médico">Material médico</option>
-                <option value="Higiene">Higiene</option>
-                <option value="Alimentos">Alimentos</option>
+                <option value="Todas">Todas las unidades</option>
+                {uniqueUnits.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {unit}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -492,11 +316,11 @@ function Inventory() {
               <thead>
                 <tr>
                   <th>Producto</th>
-                  <th>Categoría</th>
+                  <th>Unidad</th>
                   <th>Código</th>
                   <th>Existencias</th>
                   <th>Stock mínimo</th>
-                  <th>Precio</th>
+                  <th>Precio unitario</th>
                   <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
@@ -514,9 +338,7 @@ function Inventory() {
 
                       <td>{product.category}</td>
 
-                      <td className="inventory-code">
-                        {product.code}
-                      </td>
+                      <td className="inventory-code">{product.code}</td>
 
                       <td>
                         <strong>{product.quantity}</strong>
@@ -525,7 +347,8 @@ function Inventory() {
                       <td>{product.minimumStock}</td>
 
                       <td>
-                        ${product.price.toLocaleString("es-MX", {
+                        $
+                        {product.price.toLocaleString("es-MX", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
@@ -537,8 +360,8 @@ function Inventory() {
                             status === "Disponible"
                               ? "available"
                               : status === "Stock bajo"
-                                ? "low"
-                                : "empty"
+                              ? "low"
+                              : "empty"
                           }`}
                         >
                           {status}
@@ -553,36 +376,13 @@ function Inventory() {
                           >
                             <Eye size={17} />
                           </button>
-
-                          <button
-                            title="Editar producto"
-                            onClick={() => openEditModal(product)}
-                          >
-                            <Pencil size={17} />
-                          </button>
-
-                          <button
-                            title="Ajustar existencias"
-                            className="inventory-stock-btn"
-                            onClick={() => openStockModal(product)}
-                          >
-                            <ArrowDownUp size={17} />
-                          </button>
-
-                          <button
-                            title="Eliminar producto"
-                            className="inventory-delete-btn"
-                            onClick={() => handleDelete(product)}
-                          >
-                            <Trash2 size={17} />
-                          </button>
                         </div>
                       </td>
                     </tr>
                   );
                 })}
 
-                {filteredProducts.length === 0 && (
+                {!loading && filteredProducts.length === 0 && (
                   <tr>
                     <td colSpan="8" className="inventory-empty">
                       No se encontraron productos.
@@ -602,13 +402,15 @@ function Inventory() {
       <Modal
         isOpen={isModalOpen}
         onClose={closeModal}
-        title={modalTitle}
+        title={
+          modalMode === "create"
+            ? "Nuevo producto"
+            : "Detalles del producto"
+        }
         description={
           modalMode === "view"
             ? "Consulta la información del producto seleccionado."
-            : modalMode === "stock"
-              ? "Registra una entrada o salida de existencias."
-              : "Completa la información del producto para el inventario."
+            : "Completa la información del producto para el inventario."
         }
         size="large"
         footer={
@@ -624,166 +426,112 @@ function Inventory() {
             {modalMode !== "view" && (
               <button
                 type="submit"
-                form={
-                  modalMode === "stock"
-                    ? "stock-form"
-                    : "product-form"
-                }
+                form="product-form"
                 className="inventory-primary-button"
+                disabled={saving}
               >
-                {modalMode === "create"
-                  ? "Guardar producto"
-                  : modalMode === "edit"
-                    ? "Guardar cambios"
-                    : "Aplicar ajuste"}
+                {saving ? "Guardando..." : "Guardar producto"}
               </button>
             )}
           </>
         }
       >
-        {modalMode === "stock" ? (
-          <form id="stock-form" onSubmit={handleStockSubmit}>
-            <div className="inventory-stock-summary">
-              <span>Producto seleccionado</span>
-              <strong>{selectedProduct?.name}</strong>
-              <span>
-                Existencias actuales: {selectedProduct?.quantity}
-              </span>
+        <form id="product-form" onSubmit={handleSubmit}>
+          <div className="inventory-form-grid">
+            <div className="inventory-form-field">
+              <label>Nombre del producto *</label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                placeholder="Ej. Vacuna antirrábica"
+                disabled={modalMode === "view"}
+              />
             </div>
 
-            <div className="inventory-form-grid">
-              <div className="inventory-form-field">
-                <label>Tipo de movimiento *</label>
-                <select
-                  name="operation"
-                  value={stockForm.operation}
-                  onChange={handleStockInputChange}
-                >
-                  <option value="Entrada">Entrada de productos</option>
-                  <option value="Salida">Salida de productos</option>
-                </select>
-              </div>
-
-              <div className="inventory-form-field">
-                <label>Cantidad *</label>
-                <input
-                  type="number"
-                  name="quantity"
-                  min="1"
-                  step="1"
-                  value={stockForm.quantity}
-                  onChange={handleStockInputChange}
-                  placeholder="Cantidad de unidades"
-                />
-              </div>
-
-              <div className="inventory-form-field inventory-form-full">
-                <label>Motivo del movimiento</label>
-                <textarea
-                  name="reason"
-                  value={stockForm.reason}
-                  onChange={handleStockInputChange}
-                  placeholder="Describe brevemente el motivo..."
-                />
-              </div>
+            <div className="inventory-form-field">
+              <label>Unidad de medida *</label>
+              <input
+                type="text"
+                name="category"
+                value={formData.category}
+                onChange={handleInputChange}
+                placeholder="Ej. pieza, caja, frasco, ml"
+                disabled={modalMode === "view"}
+              />
             </div>
 
-            {formError && (
-              <p className="inventory-form-error">{formError}</p>
-            )}
-          </form>
-        ) : (
-          <form id="product-form" onSubmit={handleSubmit}>
-            <div className="inventory-form-grid">
-              <div className="inventory-form-field">
-                <label>Nombre del producto *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="Ej. Vacuna antirrábica"
-                  disabled={modalMode === "view"}
-                />
-              </div>
-
-              <div className="inventory-form-field">
-                <label>Código del producto *</label>
-                <input
-                  type="text"
-                  name="code"
-                  value={formData.code}
-                  onChange={handleInputChange}
-                  placeholder="Ej. MED-001"
-                  disabled={modalMode === "view"}
-                />
-              </div>
-
-              <div className="inventory-form-field">
-                <label>Categoría *</label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  disabled={modalMode === "view"}
-                >
-                  <option value="Medicamentos">Medicamentos</option>
-                  <option value="Material médico">Material médico</option>
-                  <option value="Higiene">Higiene</option>
-                  <option value="Alimentos">Alimentos</option>
-                </select>
-              </div>
-
-              <div className="inventory-form-field">
-                <label>Precio unitario (MXN) *</label>
-                <input
-                  type="number"
-                  name="price"
-                  min="0.01"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={handleInputChange}
-                  placeholder="Ej. 180.00"
-                  disabled={modalMode === "view"}
-                />
-              </div>
-
-              <div className="inventory-form-field">
-                <label>Existencias *</label>
-                <input
-                  type="number"
-                  name="quantity"
-                  min="0"
-                  step="1"
-                  value={formData.quantity}
-                  onChange={handleInputChange}
-                  disabled={modalMode === "view"}
-                />
-              </div>
-
-              <div className="inventory-form-field">
-                <label>Stock mínimo *</label>
-                <input
-                  type="number"
-                  name="minimumStock"
-                  min="0"
-                  step="1"
-                  value={formData.minimumStock}
-                  onChange={handleInputChange}
-                  disabled={modalMode === "view"}
-                />
-              </div>
+            <div className="inventory-form-field">
+              <label>Precio unitario (MXN) *</label>
+              <input
+                type="number"
+                name="price"
+                min="0"
+                step="0.01"
+                value={formData.price}
+                onChange={handleInputChange}
+                placeholder="Ej. 180.00"
+                disabled={modalMode === "view"}
+              />
             </div>
 
-            {formError && (
-              <p className="inventory-form-error">{formError}</p>
-            )}
-          </form>
-        )}
+            <div className="inventory-form-field">
+              <label>Existencias *</label>
+              <input
+                type="number"
+                name="quantity"
+                min="0"
+                step="1"
+                value={formData.quantity}
+                onChange={handleInputChange}
+                placeholder="Ej. 20"
+                disabled={modalMode === "view"}
+              />
+            </div>
+
+            <div className="inventory-form-field">
+              <label>Stock mínimo *</label>
+              <input
+                type="number"
+                name="minimumStock"
+                min="0"
+                step="1"
+                value={formData.minimumStock}
+                onChange={handleInputChange}
+                placeholder="Ej. 5"
+                disabled={modalMode === "view"}
+              />
+            </div>
+
+            <div className="inventory-form-field">
+              <label>Fecha de caducidad (opcional)</label>
+              <input
+                type="date"
+                name="expirationDate"
+                value={formData.expirationDate}
+                onChange={handleInputChange}
+                disabled={modalMode === "view"}
+              />
+            </div>
+
+            <div className="inventory-form-field inventory-form-full">
+              <label>Descripción</label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                placeholder="Descripción o presentación del producto..."
+                disabled={modalMode === "view"}
+              />
+            </div>
+          </div>
+
+          {formError && <p className="inventory-form-error">{formError}</p>}
+        </form>
       </Modal>
     </div>
   );
 }
 
 export default Inventory;
-

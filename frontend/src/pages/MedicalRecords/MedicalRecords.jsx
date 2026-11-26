@@ -1,5 +1,4 @@
-
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -7,144 +6,54 @@ import {
   PawPrint,
   CalendarDays,
   Eye,
-  Pencil,
   Stethoscope,
 } from "lucide-react";
 
 import Sidebar from "../../components/layout/Sidebar";
 import Modal from "../../components/common/Modal";
+import { medicalRecordService } from "../../services/api/medicalRecordService";
+import { petService } from "../../services/api/petService";
+import { authService } from "../../services/api/authService";
 import "./MedicalRecords.css";
 
-const demoRecords = [
-  {
-    id: 1,
-    pet: "Max",
-    species: "Perro",
-    owner: "María González",
-    veterinarian: "Dr. Alejandro Ruiz",
-    date: "20/11/2026",
-    reason: "Consulta general",
-    symptoms: "Enrojecimiento en la piel.",
-    diagnosis: "Dermatitis leve",
-    treatment: "Aplicación de tratamiento tópico.",
-    weight: "28",
-    temperature: "38.5",
-    observations: "Se recomienda revisión en una semana.",
-    status: "Finalizado",
-  },
-  {
-    id: 2,
-    pet: "Luna",
-    species: "Gato",
-    owner: "Carlos Ramírez",
-    veterinarian: "Dra. Laura Méndez",
-    date: "21/11/2026",
-    reason: "Vacunación",
-    symptoms: "Sin síntomas reportados.",
-    diagnosis: "Vacunación aplicada",
-    treatment: "Aplicación de vacuna correspondiente.",
-    weight: "4.5",
-    temperature: "38.2",
-    observations: "",
-    status: "Finalizado",
-  },
-  {
-    id: 3,
-    pet: "Rocky",
-    species: "Perro",
-    owner: "Ana Martínez",
-    veterinarian: "Dr. Alejandro Ruiz",
-    date: "22/11/2026",
-    reason: "Problemas digestivos",
-    symptoms: "Vómitos y pérdida de apetito.",
-    diagnosis: "Gastritis",
-    treatment: "Tratamiento médico y dieta especial.",
-    weight: "18",
-    temperature: "39",
-    observations: "Requiere seguimiento.",
-    status: "En seguimiento",
-  },
-  {
-    id: 4,
-    pet: "Michi",
-    species: "Gato",
-    owner: "Luis Hernández",
-    veterinarian: "Dra. Laura Méndez",
-    date: "22/11/2026",
-    reason: "Consulta general",
-    symptoms: "Pendiente de evaluación.",
-    diagnosis: "Pendiente de evaluación",
-    treatment: "",
-    weight: "",
-    temperature: "",
-    observations: "",
-    status: "Pendiente",
-  },
-  {
-    id: 5,
-    pet: "Coco",
-    species: "Ave",
-    owner: "Sofía Torres",
-    veterinarian: "Dr. Alejandro Ruiz",
-    date: "23/11/2026",
-    reason: "Revisión preventiva",
-    symptoms: "Sin síntomas reportados.",
-    diagnosis: "Sin alteraciones",
-    treatment: "Revisión preventiva.",
-    weight: "0.1",
-    temperature: "",
-    observations: "",
-    status: "Finalizado",
-  },
-];
-
 const emptyForm = {
+  petId: "",
   pet: "",
   species: "",
   owner: "",
   veterinarian: "",
   date: new Date().toLocaleDateString("en-CA"),
-  reason: "",
   symptoms: "",
   diagnosis: "",
+  selectedTreatmentId: "",
+  dosage: "",
+  frequency: "",
+  duration: "",
   treatment: "",
-  weight: "",
-  temperature: "",
+  recommendations: "",
   observations: "",
-  status: "Pendiente",
+  status: "Finalizado",
 };
-
-const veterinarians = [
-  "Dr. Alejandro Ruiz",
-  "Dra. Laura Méndez",
-];
-
-function formatDateForInput(date) {
-  if (!date) return "";
-
-  const parts = date.split("/");
-
-  if (parts.length === 3) {
-    return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
-  }
-
-  return date;
-}
 
 function formatDateForDisplay(date) {
   if (!date) return "";
-
   const parts = date.split("-");
-
   if (parts.length === 3) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
   }
-
   return date;
 }
 
 function MedicalRecords() {
-  const [records, setRecords] = useState(demoRecords);
+  const currentUser = authService.getCurrentUser();
+  const role = currentUser?.role || "VETERINARIAN";
+  const canCreate = role === "ADMIN" || role === "VETERINARIAN";
+
+  const [records, setRecords] = useState([]);
+  const [petsList, setPetsList] = useState([]);
+  const [treatmentsCatalog, setTreatmentsCatalog] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
 
@@ -153,6 +62,29 @@ function MedicalRecords() {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
   const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [recordsData, petsData, treatmentsData] = await Promise.all([
+        medicalRecordService.getAll(),
+        petService.getAll(),
+        medicalRecordService.getTreatmentsCatalog(),
+      ]);
+      setRecords(recordsData);
+      setPetsList(petsData);
+      setTreatmentsCatalog(treatmentsData);
+    } catch (error) {
+      console.error("Error al cargar expedientes médicos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const filteredRecords = useMemo(() => {
     return records.filter((record) => {
@@ -160,18 +92,14 @@ function MedicalRecords() {
 
       const matchesSearch = [
         record.pet,
-        record.species,
         record.owner,
         record.veterinarian,
-        record.reason,
+        record.symptoms,
         record.diagnosis,
-      ].some((value) =>
-        (value || "").toLowerCase().includes(searchText)
-      );
+      ].some((value) => (value || "").toLowerCase().includes(searchText));
 
       const matchesStatus =
-        statusFilter === "Todos" ||
-        record.status === statusFilter;
+        statusFilter === "Todos" || record.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -181,18 +109,15 @@ function MedicalRecords() {
     (record) => record.status === "Finalizado"
   ).length;
 
-  const followUpRecords = records.filter(
-    (record) => record.status === "En seguimiento"
-  ).length;
-
-  const pendingRecords = records.filter(
-    (record) => record.status === "Pendiente"
-  ).length;
-
   const openCreateModal = () => {
     setModalMode("create");
     setSelectedRecord(null);
-    setFormData(emptyForm);
+    setFormData({
+      ...emptyForm,
+      veterinarian: currentUser
+        ? `${currentUser.firstName} ${currentUser.lastName}`
+        : "",
+    });
     setFormError("");
     setIsModalOpen(true);
   };
@@ -203,19 +128,6 @@ function MedicalRecords() {
     setFormData({
       ...emptyForm,
       ...record,
-      date: formatDateForInput(record.date),
-    });
-    setFormError("");
-    setIsModalOpen(true);
-  };
-
-  const openEditModal = (record) => {
-    setModalMode("edit");
-    setSelectedRecord(record);
-    setFormData({
-      ...emptyForm,
-      ...record,
-      date: formatDateForInput(record.date),
     });
     setFormError("");
     setIsModalOpen(true);
@@ -230,6 +142,19 @@ function MedicalRecords() {
   const handleInputChange = (event) => {
     const { name, value } = event.target;
 
+    if (name === "petId") {
+      const petObj = petsList.find((p) => String(p.id) === String(value));
+      setFormData((previous) => ({
+        ...previous,
+        petId: value,
+        pet: petObj ? petObj.name : "",
+        species: petObj ? petObj.species : "",
+        owner: petObj ? petObj.owner : "",
+      }));
+      setFormError("");
+      return;
+    }
+
     setFormData((previous) => ({
       ...previous,
       [name]: value,
@@ -238,71 +163,35 @@ function MedicalRecords() {
     setFormError("");
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setFormError("");
 
-    if (
-      !formData.pet.trim() ||
-      !formData.species ||
-      !formData.owner.trim() ||
-      !formData.veterinarian ||
-      !formData.date ||
-      !formData.reason.trim() ||
-      !formData.diagnosis.trim()
-    ) {
-      setFormError(
-        "Completa todos los campos obligatorios."
-      );
+    if (!formData.petId || !formData.diagnosis.trim()) {
+      setFormError("La mascota y el diagnóstico son obligatorios.");
       return;
     }
 
-    const recordData = {
-      ...formData,
-      date: formatDateForDisplay(formData.date),
-    };
-
-    if (modalMode === "create") {
-      const newRecord = {
-        ...recordData,
-        id: Date.now(),
-      };
-
-      setRecords((previous) => [
-        ...previous,
-        newRecord,
-      ]);
-    }
-
-    if (modalMode === "edit" && selectedRecord) {
-      setRecords((previous) =>
-        previous.map((record) =>
-          record.id === selectedRecord.id
-            ? { ...record, ...recordData }
-            : record
-        )
+    try {
+      setSaving(true);
+      await medicalRecordService.create(formData);
+      await loadData();
+      closeModal();
+    } catch (err) {
+      setFormError(
+        err.response?.data?.message ||
+          "Error al registrar el expediente (verifica permisos de veterinario)."
       );
+    } finally {
+      setSaving(false);
     }
-
-    closeModal();
   };
 
   const isReadOnly = modalMode === "view";
 
-  const modalTitle = {
-    create: "Nuevo expediente médico",
-    view: "Consultar expediente médico",
-    edit: "Editar expediente médico",
-  }[modalMode];
-
-  const modalDescription = {
-    create: "Registra la información de la consulta médica.",
-    view: "Consulta los detalles del historial clínico.",
-    edit: "Actualiza la información médica de esta consulta.",
-  }[modalMode];
-
   return (
     <div className="records-layout">
-      <Sidebar role="VETERINARIAN" />
+      <Sidebar role={role} />
 
       <main className="records-main">
         <header className="records-header">
@@ -311,18 +200,15 @@ function MedicalRecords() {
               Gestión / Expedientes médicos
             </span>
             <h1>Expedientes médicos</h1>
-            <p>
-              Consulta y administra el historial clínico de las mascotas.
-            </p>
+            <p>Consulta y administra el historial clínico de las mascotas.</p>
           </div>
 
-          <button
-            className="records-primary-btn"
-            onClick={openCreateModal}
-          >
-            <Plus size={18} />
-            Nuevo expediente
-          </button>
+          {canCreate && (
+            <button className="records-primary-btn" onClick={openCreateModal}>
+              <Plus size={18} />
+              Nuevo expediente
+            </button>
+          )}
         </header>
 
         <section className="records-stats">
@@ -341,28 +227,28 @@ function MedicalRecords() {
               <Stethoscope size={22} />
             </div>
             <div>
-              <span>Finalizados</span>
+              <span>Consultas registradas</span>
               <h2>{completedRecords}</h2>
             </div>
           </div>
 
           <div className="record-stat-card">
             <div className="record-stat-icon orange">
-              <CalendarDays size={22} />
+              <PawPrint size={22} />
             </div>
             <div>
-              <span>En seguimiento</span>
-              <h2>{followUpRecords}</h2>
+              <span>Pacientes atendidos</span>
+              <h2>{new Set(records.map((r) => r.petId)).size}</h2>
             </div>
           </div>
 
           <div className="record-stat-card">
             <div className="record-stat-icon purple">
-              <ClipboardList size={22} />
+              <CalendarDays size={22} />
             </div>
             <div>
-              <span>Pendientes</span>
-              <h2>{pendingRecords}</h2>
+              <span>Tratamientos disponibles</span>
+              <h2>{treatmentsCatalog.length}</h2>
             </div>
           </div>
         </section>
@@ -385,8 +271,6 @@ function MedicalRecords() {
             >
               <option value="Todos">Todos los estados</option>
               <option value="Finalizado">Finalizados</option>
-              <option value="En seguimiento">En seguimiento</option>
-              <option value="Pendiente">Pendientes</option>
             </select>
           </div>
 
@@ -394,7 +278,9 @@ function MedicalRecords() {
             <div>
               <h2>Historial clínico</h2>
               <p>
-                {filteredRecords.length} expedientes encontrados
+                {loading
+                  ? "Cargando expedientes..."
+                  : `${filteredRecords.length} expedientes encontrados`}
               </p>
             </div>
           </div>
@@ -406,7 +292,7 @@ function MedicalRecords() {
                   <th>Mascota</th>
                   <th>Propietario</th>
                   <th>Fecha</th>
-                  <th>Motivo</th>
+                  <th>Síntomas</th>
                   <th>Diagnóstico</th>
                   <th>Veterinario</th>
                   <th>Estado</th>
@@ -424,7 +310,7 @@ function MedicalRecords() {
                         </div>
                         <div>
                           <strong>{record.pet}</strong>
-                          <span>{record.species}</span>
+                          <span>ID #{record.petId}</span>
                         </div>
                       </div>
                     </td>
@@ -434,11 +320,11 @@ function MedicalRecords() {
                     <td>
                       <span className="record-date">
                         <CalendarDays size={14} />
-                        {record.date}
+                        {formatDateForDisplay(record.date)}
                       </span>
                     </td>
 
-                    <td>{record.reason}</td>
+                    <td>{record.symptoms || "Sin síntomas"}</td>
 
                     <td>
                       <span className="record-diagnosis">
@@ -449,15 +335,7 @@ function MedicalRecords() {
                     <td>{record.veterinarian}</td>
 
                     <td>
-                      <span
-                        className={`record-status ${
-                          record.status === "Finalizado"
-                            ? "completed"
-                            : record.status === "En seguimiento"
-                              ? "follow-up"
-                              : "pending"
-                        }`}
-                      >
+                      <span className="record-status completed">
                         {record.status}
                       </span>
                     </td>
@@ -470,19 +348,12 @@ function MedicalRecords() {
                         >
                           <Eye size={17} />
                         </button>
-
-                        <button
-                          title="Editar expediente"
-                          onClick={() => openEditModal(record)}
-                        >
-                          <Pencil size={17} />
-                        </button>
                       </div>
                     </td>
                   </tr>
                 ))}
 
-                {filteredRecords.length === 0 && (
+                {!loading && filteredRecords.length === 0 && (
                   <tr>
                     <td colSpan="8" className="records-empty">
                       No se encontraron expedientes médicos.
@@ -498,8 +369,16 @@ function MedicalRecords() {
       <Modal
         isOpen={isModalOpen}
         onClose={closeModal}
-        title={modalTitle}
-        description={modalDescription}
+        title={
+          modalMode === "create"
+            ? "Nuevo expediente médico"
+            : "Consultar expediente médico"
+        }
+        description={
+          modalMode === "view"
+            ? "Consulta los detalles del historial clínico."
+            : "Registra la información de la consulta médica."
+        }
         size="large"
         footer={
           <>
@@ -516,136 +395,64 @@ function MedicalRecords() {
                 type="submit"
                 form="medical-record-form"
                 className="records-primary-btn"
+                disabled={saving}
               >
-                {modalMode === "create"
-                  ? "Registrar expediente"
-                  : "Guardar cambios"}
+                {saving ? "Guardando..." : "Registrar expediente"}
               </button>
             )}
           </>
         }
       >
-        <form
-          id="medical-record-form"
-          onSubmit={handleSubmit}
-        >
+        <form id="medical-record-form" onSubmit={handleSubmit}>
           <div className="record-form-grid">
             <div className="record-form-field">
-              <label htmlFor="record-pet">Nombre de la mascota *</label>
-              <input
-                id="record-pet"
-                name="pet"
-                value={formData.pet}
-                onChange={handleInputChange}
-                placeholder="Ej. Max"
-                disabled={isReadOnly}
-              />
+              <label htmlFor="record-pet">Mascota *</label>
+              {modalMode === "create" ? (
+                <select
+                  id="record-pet"
+                  name="petId"
+                  value={formData.petId}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Selecciona una mascota</option>
+                  {petsList.map((pet) => (
+                    <option key={pet.id} value={pet.id}>
+                      {pet.name} ({pet.species} - {pet.owner})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input value={formData.pet} disabled />
+              )}
             </div>
 
             <div className="record-form-field">
-              <label htmlFor="record-species">Especie *</label>
-              <select
-                id="record-species"
-                name="species"
-                value={formData.species}
-                onChange={handleInputChange}
-                disabled={isReadOnly}
-              >
-                <option value="">Selecciona una especie</option>
-                <option value="Perro">Perro</option>
-                <option value="Gato">Gato</option>
-                <option value="Ave">Ave</option>
-                <option value="Pez">Pez</option>
-                <option value="Otro">Otro</option>
-              </select>
-            </div>
-
-            <div className="record-form-field">
-              <label htmlFor="record-owner">Propietario *</label>
+              <label htmlFor="record-owner">Propietario</label>
               <input
                 id="record-owner"
-                name="owner"
                 value={formData.owner}
-                onChange={handleInputChange}
-                placeholder="Nombre del propietario"
-                disabled={isReadOnly}
+                placeholder="Se completa al elegir mascota"
+                disabled
               />
             </div>
 
             <div className="record-form-field">
-              <label htmlFor="record-veterinarian">Veterinario *</label>
-              <select
+              <label htmlFor="record-veterinarian">Veterinario</label>
+              <input
                 id="record-veterinarian"
-                name="veterinarian"
                 value={formData.veterinarian}
-                onChange={handleInputChange}
-                disabled={isReadOnly}
-              >
-                <option value="">Selecciona un veterinario</option>
-                {veterinarians.map((veterinarian) => (
-                  <option
-                    key={veterinarian}
-                    value={veterinarian}
-                  >
-                    {veterinarian}
-                  </option>
-                ))}
-              </select>
+                disabled
+              />
             </div>
 
             <div className="record-form-field">
-              <label htmlFor="record-date">Fecha de consulta *</label>
+              <label htmlFor="record-date">Fecha de consulta</label>
               <input
                 id="record-date"
                 type="date"
                 name="date"
                 value={formData.date}
-                onChange={handleInputChange}
-                disabled={isReadOnly}
-              />
-            </div>
-
-            <div className="record-form-field">
-              <label htmlFor="record-reason">Motivo de consulta *</label>
-              <input
-                id="record-reason"
-                name="reason"
-                value={formData.reason}
-                onChange={handleInputChange}
-                placeholder="Ej. Consulta general"
-                disabled={isReadOnly}
-              />
-            </div>
-
-            <div className="record-form-field">
-              <label htmlFor="record-weight">Peso (kg)</label>
-              <input
-                id="record-weight"
-                type="number"
-                name="weight"
-                value={formData.weight}
-                onChange={handleInputChange}
-                placeholder="Ej. 12.5"
-                min="0"
-                step="0.01"
-                disabled={isReadOnly}
-              />
-            </div>
-
-            <div className="record-form-field">
-              <label htmlFor="record-temperature">
-                Temperatura (°C)
-              </label>
-              <input
-                id="record-temperature"
-                type="number"
-                name="temperature"
-                value={formData.temperature}
-                onChange={handleInputChange}
-                placeholder="Ej. 38.5"
-                min="0"
-                step="0.1"
-                disabled={isReadOnly}
+                disabled
               />
             </div>
 
@@ -675,14 +482,82 @@ function MedicalRecords() {
               />
             </div>
 
+            {modalMode === "create" ? (
+              <>
+                <div className="record-form-field">
+                  <label htmlFor="record-treatment-select">
+                    Tratamiento del catálogo (opcional)
+                  </label>
+                  <select
+                    id="record-treatment-select"
+                    name="selectedTreatmentId"
+                    value={formData.selectedTreatmentId}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Ninguno / Solo recomendaciones</option>
+                    {treatmentsCatalog.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="record-form-field">
+                  <label htmlFor="record-dosage">Dosis</label>
+                  <input
+                    id="record-dosage"
+                    name="dosage"
+                    value={formData.dosage}
+                    onChange={handleInputChange}
+                    placeholder="Ej. 1 tableta / 5 ml"
+                    disabled={!formData.selectedTreatmentId}
+                  />
+                </div>
+
+                <div className="record-form-field">
+                  <label htmlFor="record-frequency">Frecuencia</label>
+                  <input
+                    id="record-frequency"
+                    name="frequency"
+                    value={formData.frequency}
+                    onChange={handleInputChange}
+                    placeholder="Ej. Cada 8 horas"
+                    disabled={!formData.selectedTreatmentId}
+                  />
+                </div>
+
+                <div className="record-form-field">
+                  <label htmlFor="record-duration">Duración</label>
+                  <input
+                    id="record-duration"
+                    name="duration"
+                    value={formData.duration}
+                    onChange={handleInputChange}
+                    placeholder="Ej. 7 días"
+                    disabled={!formData.selectedTreatmentId}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="record-form-field record-form-full">
+                <label>Tratamientos aplicados</label>
+                <textarea
+                  value={formData.treatment}
+                  rows="2"
+                  disabled
+                />
+              </div>
+            )}
+
             <div className="record-form-field record-form-full">
-              <label htmlFor="record-treatment">Tratamiento</label>
+              <label htmlFor="record-recommendations">Recomendaciones</label>
               <textarea
-                id="record-treatment"
-                name="treatment"
-                value={formData.treatment}
+                id="record-recommendations"
+                name="recommendations"
+                value={formData.recommendations}
                 onChange={handleInputChange}
-                placeholder="Tratamiento indicado..."
+                placeholder="Indicaciones generales y cuidados..."
                 rows="2"
                 disabled={isReadOnly}
               />
@@ -700,26 +575,9 @@ function MedicalRecords() {
                 disabled={isReadOnly}
               />
             </div>
-
-            <div className="record-form-field record-form-full">
-              <label htmlFor="record-status">Estado del expediente</label>
-              <select
-                id="record-status"
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-                disabled={isReadOnly}
-              >
-                <option value="Pendiente">Pendiente</option>
-                <option value="En seguimiento">En seguimiento</option>
-                <option value="Finalizado">Finalizado</option>
-              </select>
-            </div>
           </div>
 
-          {formError && (
-            <p className="record-form-error">{formError}</p>
-          )}
+          {formError && <p className="record-form-error">{formError}</p>}
         </form>
       </Modal>
     </div>

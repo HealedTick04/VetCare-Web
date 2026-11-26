@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Building2,
   Globe,
@@ -11,30 +10,9 @@ import {
   Clock,
 } from "lucide-react";
 import Sidebar from "../../components/layout/Sidebar";
+import { settingsService } from "../../services/api/settingsService";
+import { authService } from "../../services/api/authService";
 import "./Settings.css";
-
-const initialClinic = {
-  name: "VetCare",
-  email: "contacto@vetcare.com",
-  phone: "55 1234 5678",
-  address: "Ciudad de México, México",
-  openingTime: "09:00",
-  closingTime: "18:00",
-};
-
-const initialPreferences = {
-  language: "Español",
-  timezone: "America/Mexico_City",
-  dateFormat: "DD/MM/YYYY",
-  currency: "MXN",
-};
-
-const initialNotifications = {
-  newAppointments: true,
-  cancelledAppointments: true,
-  lowInventory: true,
-  emailNotifications: false,
-};
 
 const sections = [
   {
@@ -60,16 +38,35 @@ const sections = [
 ];
 
 function Settings() {
+  const currentUser = authService.getCurrentUser();
+  const role = currentUser?.role || "ADMIN";
+
   const [activeSection, setActiveSection] = useState("clinic");
 
-  const [clinic, setClinic] = useState(initialClinic);
-  const [preferences, setPreferences] = useState(initialPreferences);
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [clinic, setClinic] = useState(() => settingsService.getAll().clinic);
+  const [preferences, setPreferences] = useState(
+    () => settingsService.getAll().preferences
+  );
+  const [notifications, setNotifications] = useState(
+    () => settingsService.getAll().notifications
+  );
+
+  const [backendOnline, setBackendOnline] = useState(null);
 
   const [feedback, setFeedback] = useState({
     type: "",
     message: "",
   });
+
+  useEffect(() => {
+    let mounted = true;
+    settingsService.checkBackendHealth().then((isOk) => {
+      if (mounted) setBackendOnline(isOk);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleClinicChange = (event) => {
     const { name, value } = event.target;
@@ -147,26 +144,34 @@ function Settings() {
         });
         return;
       }
+
+      settingsService.saveSection("clinic", clinic);
     }
 
-    if (
-      activeSection === "preferences" &&
-      (!preferences.language ||
+    if (activeSection === "preferences") {
+      if (
+        !preferences.language ||
         !preferences.timezone ||
         !preferences.dateFormat ||
-        !preferences.currency)
-    ) {
-      setFeedback({
-        type: "error",
-        message: "Completa todas las preferencias antes de guardar.",
-      });
-      return;
+        !preferences.currency
+      ) {
+        setFeedback({
+          type: "error",
+          message: "Completa todas las preferencias antes de guardar.",
+        });
+        return;
+      }
+
+      settingsService.saveSection("preferences", preferences);
+    }
+
+    if (activeSection === "notifications") {
+      settingsService.saveSection("notifications", notifications);
     }
 
     setFeedback({
       type: "success",
-      message:
-        "Los cambios de esta sección se han guardado localmente. La persistencia definitiva estará disponible al conectar el backend.",
+      message: "La configuración de esta sección se guardó correctamente.",
     });
   };
 
@@ -189,7 +194,7 @@ function Settings() {
 
   return (
     <div className="settings-layout">
-      <Sidebar role="ADMIN" />
+      <Sidebar role={role} />
 
       <main className="settings-main">
         <header className="settings-header">
@@ -234,7 +239,7 @@ function Settings() {
                 <div className="settings-card-header">
                   <div>
                     <h2>Información de la clínica</h2>
-                    <p>Actualiza los datos principales de VetCare.</p>
+                    <p>Actualiza los datos principales de {clinic.name}.</p>
                   </div>
                   <Building2 size={23} />
                 </div>
@@ -322,7 +327,7 @@ function Settings() {
                 <div className="settings-section-note">
                   <Clock size={17} />
                   <span>
-                    Este horario se utilizará como referencia para la
+                    Este horario se utiliza como referencia para la
                     administración de citas de la clínica.
                   </span>
                 </div>
@@ -400,9 +405,8 @@ function Settings() {
                 <div className="settings-section-note">
                   <Globe size={17} />
                   <span>
-                    Estas preferencias serán utilizadas por los componentes
-                    de la aplicación cuando implementemos su configuración
-                    global.
+                    Estas preferencias se aplican en tu sesión de trabajo
+                    actual.
                   </span>
                 </div>
               </div>
@@ -477,8 +481,8 @@ function Settings() {
                 <div className="settings-section-note">
                   <Bell size={17} />
                   <span>
-                    La entrega real de correos y notificaciones dependerá
-                    de los servicios que configuremos en el backend.
+                    Estos filtros controlan qué alertas se muestran en el
+                    Centro de Notificaciones.
                   </span>
                 </div>
               </div>
@@ -489,7 +493,7 @@ function Settings() {
                 <div className="settings-card-header">
                   <div>
                     <h2>Seguridad y sistema</h2>
-                    <p>Información general sobre el sistema.</p>
+                    <p>Información general y estado de conexión.</p>
                   </div>
                   <ShieldCheck size={23} />
                 </div>
@@ -497,7 +501,7 @@ function Settings() {
                 <div className="settings-system-info">
                   <div>
                     <span>Nombre del sistema</span>
-                    <strong>VetCare</strong>
+                    <strong>{clinic.name}</strong>
                   </div>
 
                   <div>
@@ -506,23 +510,38 @@ function Settings() {
                   </div>
 
                   <div>
-                    <span>Estado del sistema</span>
-                    <strong className="system-status">Operativo</strong>
+                    <span>Estado de la API (Spring Boot)</span>
+                    <strong
+                      className={
+                        backendOnline === false ? "" : "system-status"
+                      }
+                      style={
+                        backendOnline === false
+                          ? { color: "#dc2626" }
+                          : undefined
+                      }
+                    >
+                      {backendOnline === null
+                        ? "Verificando..."
+                        : backendOnline
+                        ? "Operativo · Conectado"
+                        : "Sin conexión con el servidor"}
+                    </strong>
                   </div>
 
                   <div>
-                    <span>Tipo de instalación</span>
-                    <strong>Clínica individual</strong>
+                    <span>Sesión actual</span>
+                    <strong>
+                      {currentUser?.email || "Invitado"} ({role})
+                    </strong>
                   </div>
                 </div>
 
                 <div className="settings-security-note">
                   <ShieldCheck size={18} />
                   <p>
-                    Las opciones de seguridad de usuarios, contraseñas,
-                    sesiones y permisos se administrarán mediante Spring
-                    Security y JWT cuando conectemos la autenticación del
-                    backend.
+                    La autenticación, sesiones y control de permisos por rol
+                    están protegidos mediante Spring Security y tokens JWT.
                   </p>
                 </div>
               </div>
@@ -530,16 +549,18 @@ function Settings() {
 
             {renderFeedback()}
 
-            <div className="settings-actions">
-              <button
-                type="button"
-                className="settings-save-button"
-                onClick={handleSave}
-              >
-                <Save size={18} />
-                Guardar cambios
-              </button>
-            </div>
+            {activeSection !== "security" && (
+              <div className="settings-actions">
+                <button
+                  type="button"
+                  className="settings-save-button"
+                  onClick={handleSave}
+                >
+                  <Save size={18} />
+                  Guardar cambios
+                </button>
+              </div>
+            )}
           </section>
         </div>
       </main>
@@ -548,4 +569,3 @@ function Settings() {
 }
 
 export default Settings;
-

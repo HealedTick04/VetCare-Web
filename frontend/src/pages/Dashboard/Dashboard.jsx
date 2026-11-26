@@ -1,5 +1,4 @@
-
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CalendarDays,
@@ -17,65 +16,70 @@ import {
 } from "lucide-react";
 
 import Sidebar from "../../components/layout/Sidebar";
+import { appointmentService } from "../../services/api/appointmentService";
+import { petService } from "../../services/api/petService";
+import { medicalRecordService } from "../../services/api/medicalRecordService";
+import { clientService } from "../../services/api/clientService";
+import { authService } from "../../services/api/authService";
 import "./Dashboard.css";
 
-const appointments = [
-  {
-    time: "09:00",
-    pet: "Max",
-    owner: "Carlos Mendoza",
-    service: "Consulta general",
-    status: "Confirmada",
-  },
-  {
-    time: "10:30",
-    pet: "Luna",
-    owner: "María González",
-    service: "Vacunación",
-    status: "Pendiente",
-  },
-  {
-    time: "12:00",
-    pet: "Rocky",
-    owner: "Ana Martínez",
-    service: "Revisión médica",
-    status: "Confirmada",
-  },
-  {
-    time: "13:30",
-    pet: "Milo",
-    owner: "José Ramírez",
-    service: "Desparasitación",
-    status: "Pendiente",
-  },
-];
+const statusLabels = {
+  CONFIRMED: "Confirmada",
+  PENDING: "Pendiente",
+  COMPLETED: "Completada",
+  CANCELLED: "Cancelada",
+  NO_SHOW: "No asistió",
+};
 
-const activities = [
-  {
-    title: "Nueva mascota registrada",
-    description: "Max fue registrado en el sistema.",
-    time: "Hace 15 minutos",
-    icon: PawPrint,
-  },
-  {
-    title: "Cita confirmada",
-    description: "La cita de Luna fue confirmada.",
-    time: "Hace 40 minutos",
-    icon: CalendarDays,
-  },
-  {
-    title: "Nuevo expediente médico",
-    description: "Se creó un expediente para Rocky.",
-    time: "Hace 1 hora",
-    icon: FileText,
-  },
-];
+function getTodayISO() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
 function Dashboard() {
-  const [role] = useState("VETERINARIAN");
+  const currentUser = authService.getCurrentUser();
+  const role = currentUser?.role || "VETERINARIAN";
+  const isClient = role === "CLIENT";
+
+  const [appointments, setAppointments] = useState([]);
+  const [pets, setPets] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true);
+        const [apptsData, petsData, recordsData] = await Promise.all([
+          appointmentService.getAll(),
+          petService.getAll(),
+          medicalRecordService.getAll().catch(() => []),
+        ]);
+
+        setAppointments(apptsData);
+        setPets(petsData);
+        setRecords(recordsData);
+
+        if (!isClient) {
+          const clientsData = await clientService.getAll().catch(() => []);
+          setClients(clientsData);
+        }
+      } catch (error) {
+        console.error("Error al cargar resumen del dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboardData();
+  }, [isClient]);
 
   const currentDate = new Intl.DateTimeFormat("es-MX", {
     weekday: "long",
@@ -84,57 +88,144 @@ function Dashboard() {
     year: "numeric",
   }).format(new Date());
 
+  const todayISO = getTodayISO();
+
+  // Citas de hoy activas (no canceladas)
+  const todayAppointments = useMemo(() => {
+    return appointments
+      .filter((a) => a.date === todayISO && a.status !== "CANCELLED")
+      .sort((a, b) => a.time.localeCompare(b.time));
+  }, [appointments, todayISO]);
+
+  // Si hoy no hay citas, mostramos las próximas citas futuras pendientes/confirmadas
+  const upcomingAppointments = useMemo(() => {
+    const baseList =
+      todayAppointments.length > 0
+        ? todayAppointments
+        : appointments
+            .filter(
+              (a) =>
+                a.date >= todayISO &&
+                (a.status === "PENDING" || a.status === "CONFIRMED")
+            )
+            .sort((a, b) =>
+              `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)
+            )
+            .slice(0, 5);
+
+    return baseList.map((a) => ({
+      id: a.id,
+      time: a.date === todayISO ? a.time : `${a.date.slice(5)} ${a.time}`,
+      pet: a.pet,
+      owner: a.owner,
+      service: a.service,
+      status: statusLabels[a.status] || a.status,
+      rawStatus: a.status,
+    }));
+  }, [appointments, todayAppointments, todayISO]);
+
+  // Actividad reciente construida a partir de expedientes, citas y mascotas reales
+  const recentActivities = useMemo(() => {
+    const feed = [];
+
+    records.slice(0, 3).forEach((r) => {
+      feed.push({
+        id: `rec-${r.id}`,
+        title: "Nuevo expediente médico",
+        description: `Consulta registrada para ${r.pet} (${r.diagnosis}).`,
+        time: r.date || "Reciente",
+        icon: FileText,
+      });
+    });
+
+    appointments.slice(0, 3).forEach((a) => {
+      feed.push({
+        id: `app-${a.id}`,
+        title: `Cita ${
+          (statusLabels[a.status] || a.status).toLowerCase()
+        }`,
+        description: `${a.pet} — ${a.service} (${a.date} ${a.time}).`,
+        time: a.veterinarian,
+        icon: CalendarDays,
+      });
+    });
+
+    pets.slice(0, 2).forEach((p) => {
+      feed.push({
+        id: `pet-${p.id}`,
+        title: "Paciente registrado",
+        description: `${p.name} (${p.species}) — Prop. ${p.owner}.`,
+        time: p.registrationDate || "En directorio",
+        icon: PawPrint,
+      });
+    });
+
+    return feed.slice(0, 5);
+  }, [records, appointments, pets]);
+
   const normalizedSearch = searchTerm.trim().toLowerCase();
 
   const filteredAppointments = useMemo(() => {
-    return appointments.filter((appointment) =>
+    return upcomingAppointments.filter((appointment) =>
       [
         appointment.time,
         appointment.pet,
         appointment.owner,
         appointment.service,
         appointment.status,
-      ].some((value) => value.toLowerCase().includes(normalizedSearch))
+      ].some((value) => (value || "").toLowerCase().includes(normalizedSearch))
     );
-  }, [normalizedSearch]);
+  }, [upcomingAppointments, normalizedSearch]);
 
   const filteredActivities = useMemo(() => {
-    return activities.filter((activity) =>
+    return recentActivities.filter((activity) =>
       [activity.title, activity.description, activity.time].some((value) =>
-        value.toLowerCase().includes(normalizedSearch)
+        (value || "").toLowerCase().includes(normalizedSearch)
       )
     );
-  }, [normalizedSearch]);
+  }, [recentActivities, normalizedSearch]);
+
+  // Consultas realizadas en los últimos 7 días
+  const weeklyRecordsCount = useMemo(() => {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoISO = weekAgo.toISOString().split("T")[0];
+    return records.filter((r) => r.date && r.date >= weekAgoISO).length;
+  }, [records]);
 
   const statistics = [
     {
       title: "Citas de hoy",
-      value: "08",
+      value: loading ? "..." : String(todayAppointments.length).padStart(2, "0"),
       description: "Citas programadas",
       icon: CalendarDays,
       color: "blue",
       path: "/appointments",
     },
     {
-      title: "Mascotas",
-      value: "124",
+      title: isClient ? "Mis mascotas" : "Mascotas",
+      value: loading ? "..." : String(pets.length),
       description: "Pacientes registrados",
       icon: PawPrint,
       color: "green",
       path: "/pets",
     },
-    {
-      title: "Clientes",
-      value: "86",
-      description: "Propietarios registrados",
-      icon: Users,
-      color: "purple",
-      path: "/clients",
-    },
+    ...(!isClient
+      ? [
+          {
+            title: "Clientes",
+            value: loading ? "..." : String(clients.length),
+            description: "Propietarios registrados",
+            icon: Users,
+            color: "purple",
+            path: "/clients",
+          },
+        ]
+      : []),
     {
       title: "Consultas realizadas",
-      value: "12",
-      description: "Durante esta semana",
+      value: loading ? "..." : String(weeklyRecordsCount),
+      description: "Durante los últimos 7 días",
       icon: Stethoscope,
       color: "orange",
       path: "/medical-records",
@@ -142,13 +233,17 @@ function Dashboard() {
   ];
 
   const quickAccess = [
-    {
-      title: "Registrar cliente",
-      description: "Agregar un propietario",
-      icon: UserPlus,
-      color: "blue",
-      path: "/clients",
-    },
+    ...(!isClient
+      ? [
+          {
+            title: "Registrar cliente",
+            description: "Agregar un propietario",
+            icon: UserPlus,
+            color: "blue",
+            path: "/clients",
+          },
+        ]
+      : []),
     {
       title: "Registrar mascota",
       description: "Agregar un paciente",
@@ -163,14 +258,28 @@ function Dashboard() {
       color: "purple",
       path: "/appointments",
     },
-    {
-      title: "Nuevo expediente",
-      description: "Registrar una consulta",
-      icon: ClipboardList,
-      color: "orange",
-      path: "/medical-records",
-    },
+    ...(!isClient
+      ? [
+          {
+            title: "Nuevo expediente",
+            description: "Registrar una consulta",
+            icon: ClipboardList,
+            color: "orange",
+            path: "/medical-records",
+          },
+        ]
+      : []),
   ];
+
+  const displayName = currentUser
+    ? `${currentUser.firstName} ${currentUser.lastName}`
+    : "Personal veterinario";
+
+  const roleDisplay = {
+    ADMIN: "Administrador",
+    VETERINARIAN: "Veterinario",
+    CLIENT: "Cliente",
+  }[role] || role;
 
   return (
     <div className="dashboard-layout">
@@ -213,10 +322,12 @@ function Dashboard() {
             </button>
 
             <div className="topbar-user">
-              <div className="user-avatar">V</div>
+              <div className="user-avatar">
+                {displayName.charAt(0).toUpperCase()}
+              </div>
               <div>
-                <strong>Personal veterinario</strong>
-                <span>Veterinario</span>
+                <strong>{displayName}</strong>
+                <span>{roleDisplay}</span>
               </div>
             </div>
           </div>
@@ -227,10 +338,8 @@ function Dashboard() {
           <section className="dashboard-welcome">
             <div>
               <span className="dashboard-date">{currentDate}</span>
-              <h1>¡Buen día!</h1>
-              <p>
-                Aquí tienes un resumen de la actividad de tu clínica.
-              </p>
+              <h1>¡Buen día, {currentUser?.firstName || "equipo"}!</h1>
+              <p>Aquí tienes un resumen de la actividad de tu clínica.</p>
             </div>
 
             <div className="welcome-decoration">
@@ -273,7 +382,11 @@ function Dashboard() {
               <div className="panel-heading">
                 <div>
                   <h2>Próximas citas</h2>
-                  <p>Agenda de atención de hoy</p>
+                  <p>
+                    {todayAppointments.length > 0
+                      ? "Agenda de atención de hoy"
+                      : "Próximas citas programadas"}
+                  </p>
                 </div>
 
                 <button
@@ -291,7 +404,7 @@ function Dashboard() {
                   filteredAppointments.map((appointment) => (
                     <div
                       className="appointment-item"
-                      key={`${appointment.time}-${appointment.pet}`}
+                      key={appointment.id}
                     >
                       <div className="appointment-time">
                         <Clock size={15} />
@@ -306,7 +419,7 @@ function Dashboard() {
 
                       <span
                         className={`appointment-status ${
-                          appointment.status === "Confirmada"
+                          appointment.rawStatus === "CONFIRMED"
                             ? "confirmed"
                             : "pending"
                         }`}
@@ -317,7 +430,9 @@ function Dashboard() {
                   ))
                 ) : (
                   <p className="dashboard-empty-message">
-                    No se encontraron citas con esa búsqueda.
+                    {loading
+                      ? "Cargando citas..."
+                      : "No hay citas próximas programadas."}
                   </p>
                 )}
               </div>
@@ -327,7 +442,7 @@ function Dashboard() {
               <div className="panel-heading">
                 <div>
                   <h2>Actividad reciente</h2>
-                  <p>Últimos movimientos</p>
+                  <p>Últimos movimientos en el sistema</p>
                 </div>
               </div>
 
@@ -337,7 +452,7 @@ function Dashboard() {
                     const Icon = activity.icon;
 
                     return (
-                      <div className="activity-item" key={activity.title}>
+                      <div className="activity-item" key={activity.id}>
                         <div className="activity-icon">
                           <Icon size={18} />
                         </div>
@@ -352,7 +467,9 @@ function Dashboard() {
                   })
                 ) : (
                   <p className="dashboard-empty-message">
-                    No se encontraron actividades con esa búsqueda.
+                    {loading
+                      ? "Cargando actividad..."
+                      : "No hay movimientos recientes."}
                   </p>
                 )}
               </div>
@@ -364,7 +481,7 @@ function Dashboard() {
             <div className="panel-heading">
               <div>
                 <h2>Accesos rápidos</h2>
-                <p>Acciones frecuentes del personal</p>
+                <p>Acciones frecuentes</p>
               </div>
             </div>
 
@@ -388,10 +505,7 @@ function Dashboard() {
                       <span>{item.description}</span>
                     </div>
 
-                    <ArrowUpRight
-                      className="quick-access-arrow"
-                      size={17}
-                    />
+                    <ArrowUpRight className="quick-access-arrow" size={17} />
                   </button>
                 );
               })}
@@ -404,4 +518,3 @@ function Dashboard() {
 }
 
 export default Dashboard;
-

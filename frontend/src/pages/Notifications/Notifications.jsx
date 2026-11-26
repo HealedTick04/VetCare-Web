@@ -1,5 +1,4 @@
-
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   CalendarDays,
@@ -13,58 +12,9 @@ import {
   Clock,
 } from "lucide-react";
 import Sidebar from "../../components/layout/Sidebar";
+import { notificationService } from "../../services/api/notificationService";
+import { authService } from "../../services/api/authService";
 import "./Notifications.css";
-
-const demoNotifications = [
-  {
-    id: 1,
-    title: "Nueva cita registrada",
-    message: "Se ha registrado una cita para Max, propiedad de Laura Martínez.",
-    type: "Citas",
-    date: "2026-11-23T09:30:00",
-    read: false,
-  },
-  {
-    id: 2,
-    title: "Stock bajo de antiparasitarios",
-    message: "El producto Antiparasitario canino se encuentra por debajo del stock mínimo.",
-    type: "Inventario",
-    date: "2026-11-23T08:15:00",
-    read: false,
-  },
-  {
-    id: 3,
-    title: "Expediente médico actualizado",
-    message: "Se actualizó el expediente médico de Luna.",
-    type: "Expedientes",
-    date: "2026-11-22T16:45:00",
-    read: true,
-  },
-  {
-    id: 4,
-    title: "Cita cancelada",
-    message: "Carlos Hernández canceló la cita de su mascota Toby.",
-    type: "Citas",
-    date: "2026-11-22T13:20:00",
-    read: false,
-  },
-  {
-    id: 5,
-    title: "Producto agotado",
-    message: "El producto Guantes desechables ya no tiene existencias.",
-    type: "Inventario",
-    date: "2026-11-21T11:00:00",
-    read: true,
-  },
-  {
-    id: 6,
-    title: "Nuevo tratamiento registrado",
-    message: "Se registró un nuevo tratamiento para la mascota Rocky.",
-    type: "Tratamientos",
-    date: "2026-11-20T10:30:00",
-    read: true,
-  },
-];
 
 const notificationIcons = {
   Citas: CalendarDays,
@@ -74,9 +24,29 @@ const notificationIcons = {
 };
 
 function Notifications() {
-  const [notifications, setNotifications] = useState(demoNotifications);
+  const currentUser = authService.getCurrentUser();
+  const role = currentUser?.role || "VETERINARIAN";
+
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("Todas");
+
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        setLoading(true);
+        const data = await notificationService.getAll(role);
+        setNotifications(data);
+      } catch (error) {
+        console.error("Error al cargar notificaciones:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadNotifications();
+  }, [role]);
 
   const unreadCount = notifications.filter(
     (notification) => !notification.read
@@ -98,6 +68,7 @@ function Notifications() {
   }, [notifications, search, filter]);
 
   const markAsRead = (id) => {
+    notificationService.markAsRead(id);
     setNotifications((current) =>
       current.map((notification) =>
         notification.id === id
@@ -108,6 +79,7 @@ function Notifications() {
   };
 
   const markAllAsRead = () => {
+    notificationService.markAllAsRead(notifications.map((n) => n.id));
     setNotifications((current) =>
       current.map((notification) => ({
         ...notification,
@@ -117,23 +89,27 @@ function Notifications() {
   };
 
   const deleteNotification = (id) => {
+    notificationService.deleteNotification(id);
     setNotifications((current) =>
       current.filter((notification) => notification.id !== id)
     );
   };
 
   const formatDate = (date) => {
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return "Reciente";
+
     return new Intl.DateTimeFormat("es-MX", {
       day: "2-digit",
       month: "short",
       hour: "2-digit",
       minute: "2-digit",
-    }).format(new Date(date));
+    }).format(parsed);
   };
 
   return (
     <div className="notifications-layout">
-      <Sidebar role="VETERINARIAN" />
+      <Sidebar role={role} />
 
       <main className="notifications-main">
         <header className="notifications-header">
@@ -191,7 +167,11 @@ function Notifications() {
           <div className="notifications-content-header">
             <div>
               <h2>Centro de notificaciones</h2>
-              <p>Mantente al tanto de la actividad de VetCare.</p>
+              <p>
+                {loading
+                  ? "Sincronizando avisos..."
+                  : "Mantente al tanto de la actividad de VetCare."}
+              </p>
             </div>
             <span className="notifications-counter">
               {unreadCount} sin leer
@@ -224,8 +204,7 @@ function Notifications() {
 
           <div className="notifications-list">
             {filteredNotifications.map((notification) => {
-              const Icon =
-                notificationIcons[notification.type] || Bell;
+              const Icon = notificationIcons[notification.type] || Bell;
 
               return (
                 <article
@@ -234,7 +213,9 @@ function Notifications() {
                     notification.read ? "read" : "unread"
                   }`}
                 >
-                  <div className={`notification-icon ${notification.type.toLowerCase()}`}>
+                  <div
+                    className={`notification-icon ${notification.type.toLowerCase()}`}
+                  >
                     <Icon size={21} />
                   </div>
 
@@ -276,7 +257,7 @@ function Notifications() {
               );
             })}
 
-            {filteredNotifications.length === 0 && (
+            {!loading && filteredNotifications.length === 0 && (
               <div className="notifications-empty">
                 <Bell size={35} />
                 <h3>No hay notificaciones</h3>
@@ -286,7 +267,8 @@ function Notifications() {
           </div>
 
           <div className="notifications-footer">
-            Mostrando {filteredNotifications.length} de {notifications.length} notificaciones
+            Mostrando {filteredNotifications.length} de {notifications.length}{" "}
+            notificaciones
           </div>
         </section>
       </main>
