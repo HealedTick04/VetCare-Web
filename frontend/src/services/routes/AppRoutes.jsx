@@ -20,12 +20,14 @@ import ClientMedicalRecords from "../../pages/ClientMedicalRecords/ClientMedical
 import ClientAppointments from "../../pages/ClientAppointments/ClientAppointments";
 import ClientTreatments from "../../pages/ClientTreatments/ClientTreatments";
 import ClientProfile from "../../pages/ClientProfile/ClientProfile";
+import ResetPassword from "../../pages/ResetPassword/ResetPassword";
 
 function AppRoutes() {
   return (
     <Routes>
       {/* Autenticación */}
       <Route path="/login" element={<Login />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Páginas principales */}
       <Route path="/dashboard" element={<Dashboard />} />
