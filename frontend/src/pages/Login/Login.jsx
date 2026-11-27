@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 import { authService } from "../../services/api/authService";
 import "./Login.css";
 
+import loginImage from "../../assets/images/logo.webp";
+
 function Login() {
   const [userType, setUserType] = useState("client");
   const [email, setEmail] = useState("");
@@ -154,10 +156,13 @@ function Login() {
                 : "Gestiona pacientes, consultas y expedientes médicos de forma sencilla."}
             </p>
           </div>
-
+           
           <div className="welcome-image">
-            <span>Espacio para imagen</span>
-          </div>
+            <img
+            src={loginImage}
+            alt="VetCare - Cuidado de mascotas"
+            className="welcome-image-img"/>
+            </div>
         </div>
       </section>
 
