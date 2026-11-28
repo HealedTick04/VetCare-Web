@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   LockKeyhole,
@@ -10,6 +9,7 @@ import {
   AlertCircle,
   ArrowLeft,
 } from "lucide-react";
+import { authService } from "../../services/api/authService";
 import "./ResetPassword.css";
 
 function ResetPassword() {
@@ -17,6 +17,13 @@ function ResetPassword() {
   const [searchParams] = useSearchParams();
 
   const token = searchParams.get("token");
+
+  const [tokenStatus, setTokenStatus] = useState(
+    token ? "validating" : "invalid"
+  );
+  const [tokenErrorMessage, setTokenErrorMessage] = useState(
+    "No encontramos un código de recuperación en el enlace. Solicita nuevamente la recuperación de tu contraseña desde el inicio de sesión."
+  );
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -27,6 +34,39 @@ function ResetPassword() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!token) {
+      setTokenStatus("invalid");
+      return;
+    }
+
+    let isMounted = true;
+
+    const verifyToken = async () => {
+      try {
+        setTokenStatus("validating");
+        await authService.validateResetToken(token);
+        if (isMounted) {
+          setTokenStatus("valid");
+        }
+      } catch (err) {
+        if (isMounted) {
+          setTokenStatus("invalid");
+          setTokenErrorMessage(
+            err.response?.data?.message ||
+              "El enlace de recuperación no es válido o ha expirado. Solicita uno nuevo."
+          );
+        }
+      }
+    };
+
+    verifyToken();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
 
   const requirements = [
     {
@@ -53,7 +93,7 @@ function ResetPassword() {
     event.preventDefault();
     setError("");
 
-    if (!token) {
+    if (!token || tokenStatus !== "valid") {
       setError("El enlace de recuperación no es válido.");
       return;
     }
@@ -71,9 +111,7 @@ function ResetPassword() {
     setLoading(true);
 
     try {
-      // Pendiente de integración con Spring Boot.
-      // Futuro:
-      // await authService.resetPassword(token, password);
+      await authService.resetPassword(token, password, confirmPassword);
 
       setSuccess(true);
       setPassword("");
@@ -88,7 +126,22 @@ function ResetPassword() {
     }
   };
 
-  if (!token) {
+  if (tokenStatus === "validating") {
+    return (
+      <main className="reset-page">
+        <section className="reset-card reset-message-card">
+          <div className="reset-icon">
+            <LockKeyhole size={30} />
+          </div>
+          <span className="reset-brand">VETCARE</span>
+          <h1>Verificando enlace...</h1>
+          <p>Estamos comprobando la validez de tu solicitud de recuperación.</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (tokenStatus === "invalid") {
     return (
       <main className="reset-page">
         <section className="reset-card reset-message-card">
@@ -98,11 +151,7 @@ function ResetPassword() {
 
           <h1>Enlace no válido</h1>
 
-          <p>
-            No encontramos un código de recuperación en el enlace. Solicita
-            nuevamente la recuperación de tu contraseña desde el inicio de
-            sesión.
-          </p>
+          <p>{tokenErrorMessage}</p>
 
           <button
             type="button"
@@ -205,9 +254,7 @@ function ResetPassword() {
             {requirements.map((item) => (
               <div
                 key={item.label}
-                className={`reset-requirement ${
-                  item.valid ? "valid" : ""
-                }`}
+                className={`reset-requirement ${item.valid ? "valid" : ""}`}
               >
                 <CheckCircle2 size={15} />
                 <span>{item.label}</span>
@@ -234,9 +281,7 @@ function ResetPassword() {
               <button
                 type="button"
                 className="reset-eye-button"
-                onClick={() =>
-                  setShowConfirmPassword(!showConfirmPassword)
-                }
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 aria-label={
                   showConfirmPassword
                     ? "Ocultar contraseña"

@@ -20,15 +20,27 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<?> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest request) {
         Map<String, String> fieldErrors = new HashMap<>();
+        String firstMessage = "Error de validación en los campos enviados";
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             fieldErrors.put(error.getField(), error.getDefaultMessage());
+            firstMessage = error.getDefaultMessage();
         }
-        return buildResponse(HttpStatus.BAD_REQUEST, "Error de validación en los campos enviados", request.getRequestURI(), fieldErrors);
+        return buildResponse(HttpStatus.BAD_REQUEST, firstMessage, request.getRequestURI(), fieldErrors);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<?> handleBadRequest(IllegalArgumentException ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI(), null);
+    }
+
+    @ExceptionHandler(InvalidResetTokenException.class)
+    public ResponseEntity<?> handleInvalidResetToken(InvalidResetTokenException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI(), null);
+    }
+
+    @ExceptionHandler(ExpiredResetTokenException.class)
+    public ResponseEntity<?> handleExpiredResetToken(ExpiredResetTokenException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.GONE, ex.getMessage(), request.getRequestURI(), null);
     }
 
     @ExceptionHandler(BadCredentialsException.class)

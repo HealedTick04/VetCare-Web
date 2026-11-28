@@ -16,9 +16,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.UUID;
-
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -26,7 +23,6 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final RevokedTokenRepository revokedTokenRepository;
-    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
@@ -54,7 +50,6 @@ public class AuthService {
 
         userRepository.save(user);
 
-        // Guardar notificación interna y enviar correo de bienvenida
         notificationRepository.save(Notification.builder()
                 .user(user)
                 .title("Bienvenido a VetCare")
@@ -112,48 +107,6 @@ public class AuthService {
                 revokedTokenRepository.save(revoked);
             }
         }
-    }
-
-    @Transactional
-    public String createPasswordResetToken(ForgotPasswordRequest request) {
-        User user = userRepository.findByEmail(request.getEmail().toLowerCase().trim())
-                .orElseThrow(() -> new ResourceNotFoundException("No existe una cuenta asociada a ese correo"));
-
-        String resetToken = UUID.randomUUID().toString();
-        PasswordResetToken entity = PasswordResetToken.builder()
-                .user(user)
-                .token(resetToken)
-                .expiresAt(LocalDateTime.now().plusMinutes(30))
-                .build();
-        passwordResetTokenRepository.save(entity);
-
-        // Enviar correo real con el token de recuperación
-        emailService.sendEmail(
-                user.getEmail(),
-                "Recuperación de Contraseña - VetCare",
-                "Hola " + user.getFirstName() + ", usa este código para restablecer tu contraseña (expira en 30 minutos): " + resetToken
-        );
-        return resetToken; // aquí el envío real de correo/SMS/WhatsApp
-    }
-
-    @Transactional
-    public void resetPassword(ResetPasswordRequest request) {
-        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getToken())
-                .orElseThrow(() -> new ResourceNotFoundException("Token de recuperación inválido"));
-
-        if (resetToken.getUsedAt() != null) {
-            throw new BusinessRuleException("Este token de recuperación ya fue utilizado");
-        }
-        if (resetToken.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new BusinessRuleException("El token de recuperación ha expirado");
-        }
-
-        User user = resetToken.getUser();
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        userRepository.save(user);
-
-        resetToken.setUsedAt(LocalDateTime.now());
-        passwordResetTokenRepository.save(resetToken);
     }
 
     public UserProfileResponse getCurrentUserProfile(String email) {
